@@ -4,36 +4,32 @@
 option casemap :none
 
 include ws2_32.inc
-includelib ws2_32.lib
 include kernel32.inc
-includelib kernel32.lib
-;include masm32.inc
-includelib masm32.lib
-;include wsock32.inc
-;includelib wsock32.lib
 include windows.inc
 include user32.inc
-;include Irvine32.inc
-includelib user32.lib
 include msvcrt.inc
+
+includelib ws2_32.lib
+includelib kernel32.lib
+includelib masm32.lib
+includelib user32.lib
 includelib msvcrt.lib
 
 
 ExitProcess PROTO STDCALL:DWORD
-StdOut		PROTO STDCALL:DWORD
-BufSize = 80
+
 
 WM_APPENDFRIEND = WM_USER + 1
 WM_APPENDMSG = WM_USER + 2
 WM_CHANGESTATUS = WM_USER + 3
 
-Str_length PROTO :PTR BYTE   
-Str_merge PROTO :PTR BYTE,:PTR BYTE 
-Str_copy PROTO :PTR BYTE,:PTR BYTE    
-;msgParser PROTO :ptr byte,:ptr byte
 parseFriendList PROTO :PTR BYTE
 
 ;==================== DATA =======================
+
+.const
+BufSize EQU 80
+
 
 .data
 extern hWinMain:dword
@@ -57,9 +53,6 @@ szServer db "Server: %s",0dh,0ah,0
 buffer BYTE BufSize DUP(?),0,0
 stdInHandle HANDLE ?
 bytesRead   DWORD ?
-
-test_username byte "wangwang",0
-test_password byte "password",0
 
 hint_connect byte "You connect!",0dh,0ah,0
 hint_fromServer byte "from server: ",0
@@ -135,7 +128,7 @@ msgParser PROC USES eax ebx edx,_buffer:ptr byte
 		 ;invoke crt_strcpy, _content, edx
          mov _content,edx
          pushad
-         invoke Str_length,_content
+         invoke crt_strlen,_content
 		 invoke SendMessage, hWinMain, WM_APPENDMSG,  _username, _content
          ;invoke AppendMsg,_username,_content,eax,0
          popad
@@ -158,8 +151,6 @@ msgParser PROC USES eax ebx edx,_buffer:ptr byte
 				push eax
                 ;invoke crt_strcpy,_username,edx
                 mov _username,edx
-                ;invoke StdOut,_username
-                ;invoke StdOut,addr szConnect
 				;invoke nameToFd, edx, targetfd
 				.break
 			.endif
@@ -171,8 +162,7 @@ msgParser PROC USES eax ebx edx,_buffer:ptr byte
 		 ;invoke crt_strcpy, _content, edx
          mov _content,edx
 		 mov eax, 1
-         ;invoke StdOut,_content
-         ;invoke StdOut,addr szConnect
+
 pushad
          mov eax,_content
 		 mov bl,[eax]
@@ -216,11 +206,9 @@ chat_getFriendList PROC
 ; 发送指令： 3 xiaohong 
 ; 发送请求成功，eax=1；否则为0
 ;------------------------------------------------------------------------------
-
     invoke parseFriendList,addr userlist
     mov eax,1
     ret
-
 chat_getFriendList ENDP
 
 
@@ -235,8 +223,7 @@ chat_recvmsg PROC _hSocket
 	invoke RtlZeroMemory,addr userlist,sizeof userlist
 	invoke recv,_hSocket,addr userlist,sizeof userlist,0
     .if userlist[0]!=32
-		invoke StdOut,addr test_debug
-		invoke StdOut,addr userlist
+
         invoke chat_getFriendList
     .endif
  
@@ -248,8 +235,6 @@ chat_recvmsg PROC _hSocket
         ; 存入全局
 		invoke RtlZeroMemory,recv_buffer,bufferSize
 		invoke recv,_hSocket,recv_buffer,bufferSize,0
-        invoke StdOut,addr hint_fromServer
-        invoke StdOut,recv_buffer
 
         ;invoke msgParser,addr @szBuffer,addr @username,addr @content
         invoke msgParser,recv_buffer
@@ -272,7 +257,6 @@ chat_login PROC username:PTR BYTE,password:PTR BYTE
     LOCAL @szBuffer[256]:byte
     LOCAL @stSin:sockaddr_in
 
-    invoke StdOut,addr hint_login
     invoke WSAStartup,101h,addr @stWsa
     ; 创建流套接字，存入connSocket
     invoke socket,AF_INET,SOCK_STREAM,0
@@ -305,44 +289,27 @@ chat_login PROC username:PTR BYTE,password:PTR BYTE
         .endif
     .endif
 
-invoke StdOut,addr hint_connect
-	;.while TRUE
-
-	; 获取标准输入句柄
-	;INVOKE GetStdHandle, STD_INPUT_HANDLE
-	;mov    stdInHandle,eax
-	; 等待用户输入
-	;invoke RtlZeroMemory,addr buffer,sizeof buffer
-	;INVOKE ReadConsole, stdInHandle, ADDR buffer,BufSize, ADDR bytesRead, 0
-	;invoke CloseHandle,stdInHandle
-	; 显示缓冲区
-	;mov    esi,OFFSET buffer
-	;mov    ecx,bytesRead
-	;mov    ebx,TYPE buffer
-	;call    DumpMem
-    ; 清空输入
-    ;invoke RtlZeroMemory,addr buffer,sizeof buffer
-	;INVOKE ReadConsole, stdInHandle, ADDR buffer,BufSize, ADDR bytesRead, 0
-    invoke send,connSocket,addr signal_login,1,0
-invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
+    invoke send,connSocket,addr signal_login,1, 0
+	
+	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-    invoke Str_length,username
+    invoke crt_strlen,username
 	invoke send,connSocket,username,eax,0
-invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
+	
+	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-    invoke Str_length,password
+    invoke crt_strlen,password
 	invoke send,connSocket,password,eax,0
-invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
+	
+	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
 	;invoke CloseHandle,stdInHandle
 	;.if eax == SOCKET_ERROR
 	;invoke MessageBox,NULL,addr szErrSocket,addr szErrSocket,MB_OK
 	;.endif
-	;invoke StdOut,addr szAddr
 	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-	invoke StdOut,addr hint_fromServer
-	invoke StdOut,addr @szBuffer
+
     
     ;如果返回消息成功
     .if @szBuffer[0]=='s'
@@ -405,16 +372,14 @@ chat_sign_in PROC username:PTR BYTE,password:PTR BYTE
         .endif
     .endif
 
-    invoke StdOut,addr hint_connect
-
     invoke send,connSocket,addr signal_signin,1,0
     invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-    invoke Str_length,username
+    invoke crt_strlen,username
 	invoke send,connSocket,username,eax,0
     invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-    invoke Str_length,password
+    invoke crt_strlen,password
 	invoke send,connSocket,password,eax,0
     invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
@@ -422,11 +387,10 @@ chat_sign_in PROC username:PTR BYTE,password:PTR BYTE
 	;.if eax == SOCKET_ERROR
 	;invoke MessageBox,NULL,addr szErrSocket,addr szErrSocket,MB_OK
 	;.endif
-	;invoke StdOut,addr szAddr
+
 	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
 	invoke recv,connSocket,addr @szBuffer,sizeof @szBuffer,0
-	invoke StdOut,addr hint_fromServer
-	invoke StdOut,addr @szBuffer
+
 
     ;如果返回消息不成功
     .if @szBuffer[0]!='s'	
@@ -446,23 +410,21 @@ chat_sign_in ENDP
 
 ;------------------------------------------------------------------------------
 chat_sendmsg PROC username:PTR BYTE,sendmsg:PTR BYTE
-; 用户发送消息,传入发送消息的对象用户名，和索要发送的消息: 比如 1 xiaohong xxxxxxxxx
+; 用户发送消息,传入发送消息的对象用户名，和发送的消息: 比如 1 xiaohong xxxxxxxxx
 ; 发送成功，eax=1
 ;------------------------------------------------------------------------------
 
-    invoke StdOut,addr szConnect
 	invoke RtlZeroMemory,send_buffer,bufferSize
-    invoke Str_copy,addr signal_sendtext,send_buffer
-    invoke Str_merge,send_buffer, username
-    invoke Str_merge,send_buffer,addr signal_tab
-    invoke Str_merge,send_buffer,sendmsg	
-;invoke Str_merge,addr @szBuffer,addr hint_connect
-    invoke StdOut,send_buffer   
-    invoke Str_length,send_buffer
+    invoke crt_strcpy,addr signal_sendtext,send_buffer
+    invoke crt_strcat,send_buffer, username
+    invoke crt_strcat,send_buffer,addr signal_tab
+    invoke crt_strcat,send_buffer,sendmsg	
+
+    invoke crt_strlen,send_buffer
 	invoke send,connSocket,send_buffer,eax,0
 ;invoke send,connSocket,addr hint_connect,eax,0
     mov eax,1
-invoke StdOut,addr szConnect
+
     ret
 
 chat_sendmsg ENDP
@@ -479,25 +441,13 @@ chat_addFriend PROC username:PTR BYTE
     LOCAL @szBuffer[100]:byte
 
 	invoke RtlZeroMemory,addr @szBuffer,sizeof @szBuffer
-    invoke Str_copy,addr signal_addfriend,addr @szBuffer
-    invoke Str_merge,addr @szBuffer,username
-    invoke StdOut,addr @szBuffer
-    invoke Str_length,addr @szBuffer
+    invoke crt_strcpy,addr signal_addfriend,addr @szBuffer
+    invoke crt_strcat,addr @szBuffer,username
+    invoke crt_strlen,addr @szBuffer
 	invoke send,connSocket,addr @szBuffer,eax,0
     mov eax,1
     ret
 
 chat_addFriend ENDP
-
-
-mytest PROC
-;invoke chat_login,addr test_username,addr test_password
-;invoke chat_sendmsg, addr test_username,addr test_password
-;invoke chat_addFriend,addr test_username
-;invoke ExitProcess,0
-;invoke msgParser,addr test_msg,addr test_user,addr test_content
-invoke parseFriendList,addr test_friendList
-invoke ExitProcess,0
-mytest ENDP
 
 END
