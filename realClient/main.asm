@@ -16,877 +16,838 @@ includelib msvcrt.lib
 include ole32.inc
 includelib ole32.lib
 
-WM_APPENDFRIEND = WM_USER + 1
-WM_APPENDMSG = WM_USER + 2
-WM_CHANGESTATUS = WM_USER + 3
-
-public hWinMain
-
+;-----------------------------------------------------
+;æ•°æ®è®¾ç½®
+;----------------------------------------------------
 .data
-inputipHint db "please input the IP of your server", 0dh,0ah,0
-inputipFormat db "%s", 0
-inputportHint db "please input the PORT of your server", 0dh,0ah,0
-inputportFormat db "%d", 0
-tempip db 30 DUP(0)
-tempport dw ?
+hInstance DD ?
+hWinMain DD ?
+hToolBar DD ?
+hAddrInput DD ?
+hPortInput DD ?
+hUsernameInput DD ?
+hLogonButton DD ?
+hLoginButton DD ?
+hConnectButton DD ?
+hReturnToHallButton DD ?
+hAddFriendInput DD ?
+hAddFriendButton DD ?
+hDeleteFriendInput DD ?
+hDeleteFriendButton DD ?
+hFriendList DD ?
+hOnlineUserList DD ?
+hChatRoom DD ?
+hMessageEditor DD ?
+hMessageFormatTextColor DD ?
+hMessageFormatEffects DD ?
+hMessageFormatFacename DD ?
+hMessageFormatWeight DD ?
+hMessageFormatHeight DD ?
+hMessageEditorSendButton DD ?
+hMessageEditorClearButton DD ?
+hCurrentChatRoomNameEdit DD ?
+hStatusBar DD ?
 
-hInstance dd ?
-hWinMain dd ?
-hFont dd ?
-hBrush dd ?
-hListView dd ?
-hUsernameEdit dd ? 
-hPasswordEdit dd ? 
-hSendButton dd ?
-hEdit dd ?
-hNewEdit dd ?
-ptrCurUser dd 0
-ptrUsers dd 0
-ptrBuffer dd 0
+ptrBuffer db 0
 
-localCf CHARFORMAT  <>
-remoteCf CHARFORMAT  <>
-contentCf CHARFORMAT  <>
+UsersNodeList DD 0 ;ç”¨æ¥å­˜æ”¾Userçš„é“¾è¡¨
+currentUser DD 0 ; å½“å‰å¯¹è¯çš„Userï¼Œ å¦‚æœä¸º0è¡¨ç¤ºå½“å‰åœ¨å¤§å…
+User struct
+	username DD 0
+	status DD 0 ; ä¸Šçº¿æˆ–ä¸‹çº¿
+	ID DD 0
+	nextPtr dd 0 ; æŒ‡å‘ä¸‹ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹çš„æŒ‡é’ˆ
+	hChatRoom dd 0 ; æ­¤ç”¨æˆ·å¯¹åº”çš„èŠå¤©æ˜¾ç¤ºæ¡†
+User ENDS
 
-strUsername db 128 DUP(0)
-strPassword db 128 DUP(0)
+FORMAT_INT db '%d',0
 
-USER STRUCT
-	ID dd 0
-	username dd 0
-	status dd 0
-	row dd 0
-	hEdit dd 0
-	pNext dd 0
-USER ENDS
+curOnlineListRow DD -1
+curFriendListRow DD -1
 
-ReCbInterface STRUCT
-	pIntf DWORD 0
-	Refcount DWORD 0
-ReCbInterface ENDS
-
-pReCbIfc ReCbInterface <>
+ptrUsername DD 0
 
 .const
+szClientWindowClassName DB "Client Window",0 ; ClientWindow çš„ç±»å
+szClientWindowName DB "Client",0 ; ClientWindowçš„çª—å£æ ‡é¢˜åç§°
+bufSize = 104857600
+szOle32 db 'ole32.dll', 0
 szMsftedit db 'Msftedit.dll', 0
-szLogWindow db 'LogWindow',0
-szText db 'Hello, world!',0
 szStatic db 'STATIC',0
 szButton db 'BUTTON',0
+szAddress db 'Address',0
+szPort db 'PORT',0
+szUsername db 'Username',0
+szLogin db 'login',0
+szLogon db 'logon',0
 szEdit db 'EDIT',0
-szUsername db 'Username', 0
-szPassword db 'Password', 0
-szLogin db 'Log in', 0
-szLogon db 'Log on', 0
+szSend db 'Send',0
+szClear db 'Clear',0
+szListView db 'SysListView32',0
+szRichEdit50W db 'RICHEDIT50W',0
+szStatus db 'status',0
+szAllOnlineUsers db 'all online users',0
+szFriends db 'friends',0
+szOnline db 'online',0
+szOffline db 'offline',0
+szMe db 'Me',0
+szColon db ' : ',0
+szNewLine db 0dh, 0ah,0
+szPadding db 'padding',0
+szApplyPass db 'apply pass',0
+szApplyReject db 'apply reject',0
+szDelete db 'delete',0
+szReturnToHall db 'return to hall',0
+szAddFriend db 'add friend', 0
+szHallChatRoom db 'Hall ChatRoom',0
+szDeleteFriend db 'delete friend',0
+szConnect db 'connect',0
 
-szClientWindow db 'ClientWindow',0
-szClient db 'LetsChat', 0
-WC_LISTVIEW db 'SysListView32', 0
-RICHEDIT50W db 'RICHEDIT50W', 0
-szID db 'ID', 0
-szStatus db 'Status', 0
-szHello db 'Hello, ', 0
-szSend db 'Send', 0
-newLine db 0Dh,0Ah,0
-szMe db 'Me', 0
-szColon db ':', 0
-szNew db 'New', 0
-szAddfriend db 'Add friend ', 0
-szSuccess db ' success!', 0
-szAddfriendSuccess db ' request sent!', 0
-szFailed db ' failed!', 0
-szShell32 db 'shell32.dll', 0
-szOle32 db 'ole32.dll', 0
-szOnline db 'Online', 0
-szOffline db 'Offline', 0
-szCurrent db '(Current)', 0
-szYaHei db 'Microsoft Yahei UI', 0
-bufSize = 104857600
+WM_APPENDNEWUSER		EQU WM_USER + 1
+WM_APPENDFRIEND			EQU WM_USER + 2
+WM_APPENDROOMMSG		EQU WM_USER + 3
+WM_APPEND1TO1MSG		EQU WM_USER + 4
+WM_CHANGEFRIENDSTATUS	EQU WM_USER + 5
 
+
+LOGON_BUTTON_HANDLE				EQU 1
+LOGIN_BUTTON_HANDLE				EQU 2
+SEND_BUTTON_HANDLE				EQU 3
+CLEAR_BUTTON_HANDLE				EQU 4
+ADD_FRIEND_BUTTON_HANDLE		EQU 5
+RETURN_TO_HALL_BUTTON_HANDLE	EQU 6
+DELETE_FRIEND_BUTTON_HANDLE		EQU 7
+CONNECT_BUTTON_HANDLE			EQU 8
 .code
-chat_login PROTO username:PTR BYTE,password:PTR BYTE
-chat_sign_in PROTO username:PTR BYTE,password:PTR BYTE
-chat_addFriend PROTO username:PTR BYTE
-chat_getFriendList PROTO
-chat_sendmsg PROTO username:PTR BYTE,sendmsg:PTR BYTE
-
-setIP PROTO :PTR BYTE,:WORD
-StdOut PROTO STDCALL:DWORD
-
-
-Reo_QueryInterface PROC, pObject:DWORD, REFIID:DWORD, ppvObj:DWORD
-	mov eax, S_OK
-	ret
-Reo_QueryInterface ENDP
-
-Reo_AddRef PROC, pObject:DWORD
-	mov eax, pObject
-	add eax, 4
-	mov edx, [eax]
-	inc edx
-	mov [eax], edx
-	mov eax, edx
-	ret
-Reo_AddRef ENDP
-
-Reo_Release PROC pObject:DWORD
-	mov eax, pObject
-	add eax, 4
-	mov edx, [eax]
-	.if edx > 0
-		dec edx
-		mov [eax], edx
-		mov eax, edx
-	.else
-		mov pObject, 0
-	.endif
-	ret
-Reo_Release ENDP
-
-Reo_GetInPlaceContext PROC pObject:DWORD, lplpFrame:DWORD, lplpDoc:DWORD, lpFrameInfo:DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_GetInPlaceContext ENDP
-
-Reo_ShowContainerUI PROC pObject:DWORD, fShow:LONG
-	mov eax, E_NOTIMPL
-	ret
-Reo_ShowContainerUI ENDP
-
-Reo_QueryInsertObject PROC pObject:DWORD, lpclsid:DWORD, lpstg:DWORD, cp:LONG
-	mov eax, S_OK
-	ret
-Reo_QueryInsertObject ENDP
-
-Reo_DeleteObject PROC pObject:DWORD, lpoleobj:DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_DeleteObject ENDP
-
-Reo_QueryAcceptData PROC pObject:DWORD, lpdataobj:DWORD, lpcfFormat:DWORD, reco:DWORD, fReally:LONG, hMetaPict:DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_QueryAcceptData ENDP
-
-Reo_ContextSensitiveHelp PROC pObject:DWORD, fEnterMode:LONG
-	mov eax, E_NOTIMPL
-	ret
-Reo_ContextSensitiveHelp ENDP
-
-Reo_GetClipboardData PROC pObject:DWORD , lpchrg:DWORD, reco:DWORD, lplpdataobj:DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_GetClipboardData ENDP
-
-Reo_GetDragDropEffect PROC pObject: DWORD, fDrag : LONG, grfKeyState : DWORD, pdwEffect : DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_GetDragDropEffect ENDP
-
-Reo_GetContextMenu PROC pObject: DWORD , seltype : WORD, lpoleobj : DWORD, lpchrg : DWORD, lphmenu : DWORD
-	mov eax, E_NOTIMPL
-	ret
-Reo_GetContextMenu ENDP
-
-Reo_GetNewStorage PROC USES esi, pObject : DWORD, lplpstg:DWORD
-	LOCAL sc: DWORD
-	LOCAL lpLockBytes:DWORD
-
-	invoke CreateILockBytesOnHGlobal, 0, 1, addr lpLockBytes
-	mov sc, eax
-
-	.if eax != 0
-		ret
-	.endif
-
-	invoke StgCreateDocfileOnILockBytes, lpLockBytes, STGM_SHARE_EXCLUSIVE OR STGM_READWRITE OR STGM_CREATE, 0, lplpstg
-
-	mov sc, eax
-	.if eax != 0
-		push lpLockBytes
-		mov eax, lpLockBytes
-		add eax, 8
-		mov eax, [eax]
-		push lpLockBytes
-		call eax
-	.endif
-	mov eax, sc
-	ret
-Reo_GetNewStorage ENDP
-
-
-Reo_SetComInterface PROC, hDisEdit:DWORD
-	invoke crt_malloc, 52
-	mov edx, eax
-
-	mov eax, offset Reo_QueryInterface
-	mov [edx], eax
-	mov eax, offset Reo_AddRef
-	mov [edx+4], eax
-	mov eax, offset Reo_Release
-	mov [edx+8], eax
-	mov eax, offset Reo_GetNewStorage
-	mov [edx+12], eax
-	mov eax, offset Reo_GetInPlaceContext
-	mov [edx+16], eax
-	mov eax, offset Reo_ShowContainerUI
-	mov [edx+20], eax
-	mov eax, offset Reo_QueryInsertObject
-	mov [edx+24], eax
-	mov eax, offset Reo_DeleteObject
-	mov [edx+28], eax
-	mov eax, offset Reo_QueryAcceptData
-	mov [edx+32], eax
-	mov eax, offset Reo_ContextSensitiveHelp
-	mov [edx+36], eax
-	mov eax, offset Reo_GetClipboardData
-	mov [edx+40], eax
-	mov eax, offset Reo_GetDragDropEffect
-	mov [edx+44], eax
-	mov eax, offset Reo_GetContextMenu
-	mov [edx+48], eax
-
-	mov pReCbIfc.pIntf, edx
-	mov pReCbIfc.Refcount, 1
-
-	invoke SendMessage, hDisEdit, EM_SETOLECALLBACK, 0, addr pReCbIfc
-	ret
-Reo_SetComInterface ENDP
-
-CreateUserLabel PROC, Username:DWORD
-	local buffer[128]:BYTE
-	invoke crt_strcpy, addr buffer, addr szHello
-	invoke crt_strcat, addr buffer, Username
-	invoke CreateWindowEx, NULL, addr szStatic, addr buffer,
-	WS_CHILD or WS_VISIBLE or SS_CENTER or SS_CENTERIMAGE, 20, 20, 290, 20,
-	hWinMain, 1, hInstance, NULL
-	invoke SendMessage, eax, WM_SETFONT, hFont, 0
-	ret
-CreateUserLabel ENDP
-
-CreateListView PROC USES eax esi edi
+;----------------------------------------------------------
+_createListView PROC USES eax esi
+; è¿™é‡Œåˆ›å»ºå¤§å…liståˆ—è¡¨å’Œå¥½å‹liståˆ—è¡¨
+;----------------------------------------------------------
 	local @col:LVCOLUMN
-	local @hShell:HMODULE
-	local @hIcon:HICON
-	local @hImageList:HIMAGELIST
-	; ³õÊ¼»¯Í¼±ê¿â
-	invoke LoadLibrary, addr szShell32
-	mov @hShell, eax
-	invoke LoadIcon, @hShell, 220
-	mov @hIcon, eax
-	invoke GetSystemMetrics, SM_CXSMICON
-	mov esi, eax
-	invoke GetSystemMetrics, SM_CYSMICON
-	mov edi, eax
-	invoke ImageList_Create, esi, edi, ILC_MASK, 1, 0
-	mov @hImageList, eax
-	invoke ImageList_AddIcon, @hImageList, @hIcon
-
-	invoke CreateWindowEx, NULL, offset WC_LISTVIEW, \
-	NULL, WS_CHILD or WS_VISIBLE or LVS_REPORT or LVS_EDITLABELS or LVS_SINGLESEL or LV_VIEW_ICON, \
-	20, 80, 290, 500, hWinMain, 0, hInstance, NULL
-	mov hListView, eax
-	invoke SendMessage, hListView, LVM_SETIMAGELIST, LVSIL_SMALL, @hImageList
-
-	mov @col.imask, LVCF_TEXT or LVCF_WIDTH or LVCF_SUBITEM
-	mov @col.lx, 180
-	mov @col.iSubItem, 0
-	mov @col.pszText, offset szUsername
-	invoke SendMessage, hListView, LVM_INSERTCOLUMN, 0,addr @col
-	invoke SendMessage, hListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT or LVS_EX_AUTOSIZECOLUMNS
-
-	mov @col.imask, LVCF_TEXT or LVCF_WIDTH or LVCF_SUBITEM
-	mov @col.lx, 110
-	mov @col.iSubItem, 0
-	mov @col.pszText, offset szStatus
-	invoke SendMessage, hListView, LVM_INSERTCOLUMN, 1, addr @col
-
-	mov @col.imask, LVCF_TEXT or LVCF_WIDTH or LVCF_SUBITEM
-	mov @col.lx, 0
-	mov @col.iSubItem, 0
-	mov @col.pszText, offset szID
-	invoke SendMessage, hListView, LVM_INSERTCOLUMN, 2, addr @col
-
-	ret
-CreateListView ENDP
-
-InitUI PROC USES eax
-	invoke RtlZeroMemory, addr localCf, SIZEOF localCf
-	mov localCf.cbSize, SIZEOF localCf
-	mov localCf.dwMask, CFM_COLOR or CFM_SIZE or CFM_FACE or CFM_BOLD 
-	mov localCf.dwEffects, CFE_BOLD
-	invoke crt_strcpy, addr localCf.szFaceName, offset szYaHei
-	mov localCf.yHeight, 220
-	mov localCf.crTextColor, 0ff0000h
-
-	invoke RtlZeroMemory, addr remoteCf, SIZEOF remoteCf
-	mov remoteCf.cbSize, SIZEOF remoteCf
-	mov remoteCf.dwMask, CFM_COLOR or CFM_SIZE or CFM_FACE or CFM_BOLD
-	mov remoteCf.dwEffects, CFE_BOLD
-	invoke crt_strcpy, addr remoteCf.szFaceName, offset szYaHei
-	mov remoteCf.yHeight, 220
-	mov remoteCf.crTextColor, 0FFh
-
-	invoke RtlZeroMemory, addr contentCf, SIZEOF contentCf
-	mov contentCf.cbSize, SIZEOF contentCf
-	mov contentCf.dwMask, CFM_SIZE or CFM_FACE; or CFM_BOLD
-	invoke crt_strcpy, addr contentCf.szFaceName, offset szYaHei
-	mov contentCf.yHeight, 200
-
-	invoke CreateWindowEx, NULL, addr RICHEDIT50W, addr szText,\
-	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL, 340, 450, 430, 130,\  
-	hWinMain, 0, hInstance, NULL
-	mov hEdit, eax
-	invoke SendMessage, eax, WM_SETFONT, hFont, 0
-	
-	invoke CreateWindowEx, NULL, addr szButton, addr szSend,\
-	WS_TABSTOP or WS_VISIBLE or WS_CHILD or BS_DEFPUSHBUTTON, 780, 450, 140, 130,
+	; åˆ›å»ºonlineUserlistview å¥æŸ„1
+	invoke CreateWindowEx, NULL, offset szListView, NULL,\
+	WS_CHILD or WS_BORDER or WS_VSCROLL or WS_VISIBLE or LVS_SINGLESEL or LVS_REPORT,\ ;æ·»åŠ äº†LVS_REPORTæ‰èƒ½æ˜¾ç¤ºè¡¨å¤´
+	20, 80, 300, 250,\
 	hWinMain, 1, hInstance, NULL
-	mov hSendButton, eax
-	invoke EnableWindow, hSendButton, 0
-	invoke SendMessage, hSendButton, WM_SETFONT, hFont, 0
+	mov hOnlineUserList, eax
 
-	invoke CreateWindowEx, NULL, addr szEdit, \
-	NULL, WS_CHILD or WS_VISIBLE or WS_BORDER, 20, 50, 230, 20, \
-	hWinMain, 0, hInstance, NULL
-	mov hNewEdit, eax
-	invoke SendMessage, hNewEdit, WM_SETFONT, hFont, 0
+	; è®¾ç½®onlineUserListViewçš„è¡¨å¤´
+	; ç¬¬ä¸€åˆ— ç”¨æˆ·å Username
+	mov @col.imask, LVCF_TEXT or LVCF_WIDTH ; è¿™é‡Œæ˜¯åœ¨è®¾ç½®colçš„ä»€ä¹ˆå±æ€§æ˜¯å¯ç”¨çš„
+	mov @col.lx, 180
+	mov @col.pszText, offset szUsername
+	invoke SendMessage, hOnlineUserList, LVM_INSERTCOLUMN, 0, addr @col
+	; ç¬¬äºŒåˆ— ç”¨æˆ·çŠ¶æ€ status ï¼ˆæ˜¯å¦åœ¨çº¿ï¼‰
+	mov @col.imask, LVCF_TEXT or LVCF_WIDTH
+	mov @col.lx, 120
+	mov @col.pszText, offset szStatus
+	invoke SendMessage, hOnlineUserList, LVM_INSERTCOLUMN, 1, addr @col
 
-	invoke CreateWindowEx, NULL, addr szButton, addr szNew,\
-	WS_TABSTOP or WS_VISIBLE or WS_CHILD or BS_DEFPUSHBUTTON, 260, 50, 50, 20,
+	invoke SendMessage, hOnlineUserList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT or LVS_EX_AUTOSIZECOLUMNS
+
+	; åˆ›å»ºfriendListView å¥æŸ„2
+	invoke CreateWindowEx, NULL, offset szListView, NULL,\
+	WS_CHILD or WS_BORDER or WS_VSCROLL or WS_VISIBLE or LVS_SINGLESEL or LVS_REPORT,\
+	20, 380, 300, 280,\
 	hWinMain, 2, hInstance, NULL
-	invoke SendMessage, eax, WM_SETFONT, hFont, 0
-	invoke CreateListView
+	mov hFriendList, eax
 
-	mov eax, 0
+	; è®¾ç½®FriendListViewçš„è¡¨å¤´
+	; ç¬¬ä¸€åˆ— ç”¨æˆ·å Username
+	mov @col.imask, LVCF_TEXT or LVCF_WIDTH; è¿™é‡Œæ˜¯åœ¨è®¾ç½®colçš„ä»€ä¹ˆå±æ€§æ˜¯å¯ç”¨çš„
+	mov @col.lx, 180
+	mov @col.pszText, offset szUsername
+	invoke SendMessage, hFriendList, LVM_INSERTCOLUMN, 0, addr @col
+	; ç¬¬äºŒåˆ— ç”¨æˆ·çŠ¶æ€ status ï¼ˆæ˜¯å¦åœ¨çº¿ï¼‰
+	mov @col.imask, LVCF_TEXT or LVCF_WIDTH
+	mov @col.lx, 120
+	mov @col.pszText, offset szStatus
+	invoke SendMessage, hFriendList, LVM_INSERTCOLUMN, 1, addr @col
+
+	invoke SendMessage, hFriendList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT or LVS_EX_AUTOSIZECOLUMNS
 	ret
-InitUI ENDP
+_createListView ENDP
 
-WriteEditCallback PROC USES esi edi, dwCookie:DWORD, pbBuff:DWORD, cb:DWORD, pcb:DWORD
-	mov edi, dwCookie
-	mov esi, [edi]
-	invoke crt_memcpy, pbBuff, esi, cb
-	add esi, cb
-	mov [edi], esi
-	mov esi, pcb
-	mov edi, cb
-	mov [esi], edi
-	mov eax, 0
-	ret
-WriteEditCallback ENDP
-
-AppendMsg PROC USES eax edx esi, username:DWORD, ptrMsg:DWORD, lenMsg:DWORD, from:BYTE
-	local @hEdit:DWORD
-	local @instream:EDITSTREAM
-	local @ptr:DWORD
-	local @FILE:DWORD
-	local @charRange:CHARRANGE
-	local @charFormat: DWORD
-	local @paraFormat: DWORD
-
-	mov esi, ptrUsers
-	.while esi != 0
-		mov edi, (USER ptr [esi]).username
-		invoke crt_strcmp, edi, username
-		.if eax == 0
-			.break
-		.endif
-		mov esi, (USER ptr [esi]).pNext
-	.endw
-	mov eax, (USER ptr [esi]).hEdit
-	mov @hEdit, eax
-	invoke SendMessage, @hEdit, EM_SETSEL, -2, -1
-	invoke SendMessage, @hEdit, EM_EXGETSEL, 0, addr @charRange
-	.if from == 0
-		mov @charFormat, offset remoteCf
-		invoke SendMessage, @hEdit, EM_REPLACESEL, 1, (USER ptr [esi]).username
-	.else
-		mov @charFormat, offset localCf
-		invoke SendMessage, @hEdit, EM_REPLACESEL, 1, addr szMe
-	.endif
-	
-	invoke SendMessage, @hEdit, EM_REPLACESEL, 1, addr szColon
-	mov @charRange.cpMax, -1
-	invoke SendMessage, @hEdit, EM_EXSETSEL, 0, addr @charRange
-	invoke SendMessage, @hEdit, EM_SETCHARFORMAT, SCF_SELECTION, @charFormat
-	invoke SendMessage, @hEdit, EM_SETSEL, -2, -1
-	invoke SendMessage, @hEdit, EM_REPLACESEL, 1, addr newLine
-
-	mov eax, ptrMsg
-	mov @ptr, eax
-	lea eax, @ptr
-	mov @instream.dwCookie, eax
-	mov @instream.dwError, 1
-	mov @instream.pfnCallback, offset WriteEditCallback
-	invoke SendMessage, @hEdit, EM_STREAMIN, SF_RTF or SFF_SELECTION, addr @instream
-
-	mov @charRange.cpMax, -1
-	invoke SendMessage, @hEdit, EM_EXSETSEL, 0, addr @charRange
-	invoke SendMessage, @hEdit, EM_SETCHARFORMAT, SCF_SELECTION, addr contentCf
-	ret
-AppendMsg ENDP
-
-SwitchSession PROC USES eax edx esi edi, row:DWORD
-	local @item:LV_ITEM
-	local @buffer[128]: DWORD
-	local @status[16]:DWORD
+;-----------------------------------------------------------------
+_getUsernameByRow PROC USES eax esi edi, row:DWORD, hListView:DWORD
+; é€šè¿‡è¡Œæ•°å¾—åˆ°ç”¨æˆ·åï¼Œå¹¶å­˜åœ¨å…¨å±€å˜é‡ ptrUsernameä¸­
+;----------------------------------------------------------------
+	local @username:DWORD
+	local @buffer[128]:DWORD
+	local @item :LV_ITEM
 
 	mov @item.iSubItem, 0
 	lea eax, @buffer
 	mov @item.pszText, eax
 	mov @item.cchTextMax, 128
 	invoke SendMessage, hListView, LVM_GETITEMTEXT, row, addr @item
+	mov eax, @item.pszText
+	invoke crt_strcpy, addr ptrUsername, eax
 
-	mov esi, ptrUsers
-	.while esi != 0
-		mov edi, (USER ptr [esi]).username
-		lea eax, @buffer
-		invoke crt_strcmp, edi, eax
-		.if eax == 0
-			.break
-		.endif
-		mov esi, (USER ptr [esi]).pNext
-	.endw
-	.if esi != 0
-		.if ptrCurUser != 0
-			mov edi, ptrCurUser
-			mov eax, (USER ptr [edi]).status
-			.if eax == 0
-				mov @item.pszText, offset szOffline
-			.else
-				mov @item.pszText, offset szOnline
-			.endif
-			mov @item.iSubItem, 1
-			invoke SendMessage, hListView, LVM_SETITEMTEXT, (USER ptr [edi]).row, addr @item
-			invoke ShowWindow, (USER ptr [edi]).hEdit, SW_HIDE
-		.endif
-		mov ptrCurUser, esi
-		invoke ShowWindow, (USER ptr [esi]).hEdit, SW_SHOW
-
-		mov eax, (USER ptr [esi]).status
-		.if eax == 0
-			invoke EnableWindow, hSendButton, 0
-		.else
-			invoke EnableWindow, hSendButton, 1
-		.endif
-		mov @item.iSubItem, 1
-		lea eax, @buffer
-		mov @item.pszText, eax
-		mov @item.cchTextMax, 128
-		invoke SendMessage, hListView, LVM_GETITEMTEXT, (USER ptr [esi]).row, addr @item
-		invoke crt_strcat, addr @buffer, offset szCurrent
-		invoke SendMessage, hListView, LVM_SETITEMTEXT, (USER ptr [esi]).row, addr @item
-	.endif
 	ret
-SwitchSession ENDP
-
-ReadEditCallback PROC USES esi edi, dwCookie:DWORD, pbBuff:DWORD, cb:DWORD, pcb:DWORD
-	mov edi, dwCookie
-	mov esi, [edi]
-	invoke crt_memcpy, esi, pbBuff, cb
-	add esi, cb
-	mov [edi], esi
-
-	mov esi, pcb
-	mov edi, cb
-	mov [esi], edi
-	mov eax, 0
-	ret
-ReadEditCallback ENDP
-
-SendMsg PROC USES eax esi edi
-	local @outstream:EDITSTREAM
-	local @ptr:DWORD
-
-	mov eax, ptrBuffer
-	mov @ptr, eax
-	lea eax, @ptr
-	mov @outstream.dwCookie, eax
-	mov @outstream.dwError, 1
-	mov @outstream.pfnCallback, offset ReadEditCallback
-	invoke SendMessage, hEdit, EM_STREAMOUT, SF_RTF, addr @outstream
-	invoke SetWindowText, hEdit, NULL
-	mov eax, ptrCurUser
-	invoke AppendMsg, (USER ptr [eax]).username, ptrBuffer, edi, 1
-	invoke chat_sendmsg, (USER ptr [eax]).username, ptrBuffer
-	ret
-SendMsg ENDP
-
-AppendFriend PROC USES eax ebx edx esi edi, username:DWORD, status:DWORD, ID:DWORD
+_getUsernameByRow ENDP
+;-----------------------------------------------------------------
+_addUserToList PROC USES eax ebx esi edi, username:DWORD, status:DWORD, hListView:DWORD
+; å°†ç”¨æˆ·åŠ å…¥åˆ—è¡¨ä¸­
+;-----------------------------------------------------------------
 	local @item: LVITEM
-	local @hEdit: DWORD
-	local @szID[16]: BYTE
-	mov @item.imask, LVIF_TEXT or LVIF_IMAGE
-	mov @item.iImage, 0
+	local @hChatRoom: DWORD
+
+	;invoke crt_printf, username
+	; å†™å…¥username
+	mov @item.imask, LVIF_TEXT
 	mov @item.pszText, NULL
-	mov @item.cchTextMax, 1024
+	invoke crt_printf, username
 	invoke SendMessage, hListView, LVM_GETITEMCOUNT, 0, 0
 	mov @item.iItem, eax
-	mov esi, eax
 	mov @item.iSubItem, 0
 	invoke SendMessage, hListView, LVM_INSERTITEM, 0, addr @item
-
+	
 	mov eax, username
 	mov @item.pszText, eax
 	invoke SendMessage, hListView, LVM_SETITEM, 0, addr @item
-
-	inc @item.iSubItem
-
+	; å†™å…¥ç”¨æˆ·çŠ¶æ€
 	.if status == 1
 		mov eax, offset szOnline
-	.else
+	.elseif status ==2
 		mov eax, offset szOffline
+	.elseif status == 3
+		mov eax, offset szPadding
+	.elseif status == 4
+		mov eax, offset szApplyPass
+	.elseif status == 5
+		mov eax, offset szApplyReject
+	.elseif status == 6
+		mov eax, offset szDelete
 	.endif
-	mov @item.pszText, eax
+	mov @item.pszText,eax
+	add @item.iSubItem, 1
 	invoke SendMessage, hListView, LVM_SETITEM, 0, addr @item
 
-	inc @item.iSubItem
+	; å¦‚æœæ˜¯åŠ å…¥å¤§å…åˆ—è¡¨ï¼Œä¸éœ€è¦å»ºç«‹Userç»“æ„ä½“ä»¥åŠåŠ å…¥Useré“¾è¡¨
+	mov eax, hOnlineUserList
+	cmp hListView,eax
+	je QUIT
 
-	lea eax, @szID
-	invoke crt__itoa, ID, eax, 10
-	mov @item.pszText, eax
-	invoke SendMessage, hListView, LVM_SETITEM, 0, addr @item
-
-	;´´½¨ÁÄÌì¼ÇÂ¼¿ò
-	invoke CreateWindowEx, NULL, addr RICHEDIT50W, NULL, \
-	WS_CHILD or WS_VISIBLE or WS_BORDER or ES_MULTILINE or WS_VSCROLL or ES_AUTOVSCROLL, 340, 20, 580, 400,\  
-	hWinMain, 0, hInstance, NULL
-	mov @hEdit, eax
-	invoke Reo_SetComInterface, @hEdit
-	invoke ShowWindow, @hEdit, SW_HIDE
-	invoke SendMessage, @hEdit, WM_SETFONT, hFont, 0
-
-	; ´´½¨USER½á¹¹Ìå
-	invoke GlobalAlloc, GPTR, sizeof USER
+	; æ–°å»ºUserç»“æ„ä½“ï¼Œå†™å…¥Usernameå’Œstatus
+	invoke GlobalAlloc, GPTR, sizeof User
 	mov edi, eax
-	mov eax, ID
-	mov (USER ptr [edi]).ID, eax
+	invoke crt_malloc, 48
+	mov (User ptr [edi]).username, eax
+	invoke crt_strcpy, (User ptr [edi]).username, username
 
-	invoke crt_malloc, 32
-	mov (USER ptr [edi]).username, eax
-	invoke crt_strcpy, (USER ptr [edi]).username, username
-
+	;invoke crt_malloc, 48
+	;mov (User ptr [edi]).status, eax
+	;invoke crt_strcpy, (User ptr [edi]).status, status
 	mov eax, status
-	mov (USER ptr [edi]).status, eax
-	mov (USER ptr [edi]).row, esi
-	mov eax, @hEdit
-	mov (USER ptr [edi]).hEdit, eax
+	mov (User ptr [edi]).status, eax
 
-	; ²åÈëUSERSÁ´±í
-	.if ptrUsers == 0
-		mov ptrUsers, edi
+	; åˆ›å»ºå±äºè¯¥ç”¨æˆ·çš„èŠå¤©æ˜¾ç¤ºæ¡†ï¼Œå¹¶ç»‘å®šåœ¨Userç»“æ„ä½“ä¸­
+	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
+	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL or ES_READONLY,\
+	350, 80, 860, 360,\
+	hWinMain, 0, hInstance, NULL
+	mov (User ptr [edi]).hChatRoom, eax
+
+	; å°†è¯¥Userç»“æ„ä½“æ’å…¥é“¾è¡¨ä¸­
+	.if UsersNodeList == 0
+		mov UsersNodeList, edi
 	.else
-		mov eax, ptrUsers
-		mov edx, (USER ptr [eax]).pNext
-		.while edx != 0
-			mov eax, edx
-			mov edx, (USER ptr [eax]).pNext
+		mov esi, UsersNodeList
+		mov ebx, (User ptr [esi]).nextPtr
+		.while ebx != 0
+			mov esi,ebx
+			mov ebx, (User ptr [esi]).nextPtr
 		.endw
-		mov (USER ptr [eax]).pNext, edi
+		mov (User ptr [esi]).nextPtr, edi
+		mov (User ptr [edi]).nextPtr, 0
 	.endif
+QUIT:
 	ret
-AppendFriend ENDP
 
-ChangeFriendStatus PROC USES eax ebx edx, username:DWORD, status:DWORD
+_addUserToList ENDP
+
+;-------------------------------------------------------------
+_streamWriteCallBack PROC USES eax ebx edi esi dwCookie:DWORD, lpBuffer:DWORD, dwBytes:DWORD, lpBytes:DWORD
+; æ–‡æœ¬æµè¾“å…¥è¦æ±‚çš„å›è°ƒå‡½æ•°ï¼Œåœ¨ä¸‹é¢çš„addMsgä¸­ä½¿ç”¨
+; dwCookieä¸­å­˜å‚¨ç€éœ€è¦ä¼ è¾“çš„æ–‡æœ¬,å°†å…¶å†™å…¥lpBufferä¸­ï¼ŒdwBytesè¡¨ç¤ºå†™å…¥çš„æ–‡æœ¬é•¿åº¦ï¼ŒlpBytesè¡¨ç¤ºå®é™…å†™å…¥çš„æ–‡æœ¬é•¿åº¦
+;-------------------------------------------------------------
+	mov edi, dwCookie
+	mov esi, [edi]
+	invoke crt_memcpy, lpBuffer, esi, dwBytes
+	add esi, dwBytes
+	mov [edi], esi
+	mov esi, lpBytes
+	mov edi, dwBytes
+	mov [esi], edi
+	mov eax, 0
+	ret
+_streamWriteCallBack ENDP
+
+;-----------------------------------------------------------
+_addMsg PROC USES eax edx esi edi, username:DWORD, msg:DWORD, sender:DWORD, sendTo:DWORD
+; è¯¥å‡½æ•°å°†ä¼ å…¥çš„msgæ”¾ç½®åˆ°å½“å‰çš„èŠå¤©æ˜¾ç¤ºæ¡†ä¸Š
+; sender è¡¨ç¤ºå‘é€äººï¼Œ1æ˜¯å¯¹é¢ï¼Œ0æ˜¯è‡ªå·±
+; sendTo è¡¨ç¤ºå‘é€ç›®çš„åœ°ï¼Œ0æ˜¯å¤§å…ï¼Œ1æ˜¯å¥½å‹
+;-----------------------------------------------------------
+	local @hChatRoom: DWORD
+	local @charRange: CHARRANGE
+	local @editStream: EDITSTREAM
+	local @ptr: DWORD
+	.if sendTo == 1
+		; åœ¨USERé“¾è¡¨ä¸­æ‰¾åˆ°å¯¹åº”çš„ç”¨æˆ·ï¼Œæ‰¾åˆ°ä»–çš„èŠå¤©æ˜¾ç¤ºæ¡†
+		mov esi, UsersNodeList
+		.while esi != 0
+			mov edi , (User ptr [esi]).username
+			invoke crt_strcmp, edi, username
+			.if eax == 0
+				.break
+			.endif
+			mov esi, (User ptr [esi]).nextPtr
+		.endw
+		mov eax, (User ptr [esi]).hChatRoom
+		mov @hChatRoom, eax
+	.else
+		mov eax, hChatRoom
+		mov @hChatRoom, eax
+	.endif
+
+	invoke SendMessage, @hChatRoom, EM_SETSEL, -1, -1 ;è®¾å®šæ–‡æœ¬æ’å…¥èŒƒå›´ï¼Œ-1è¡¨ç¤ºæ–‡æœ¬æœ«å°¾
+	;invoke SendMessage, @hChatRoom, EM_EXGETSEL, 0, addr @charRange ; è·å–æ–‡æœ¬é€‰æ‹©èŒƒå›´ï¼Œå¯ä»¥é€šè¿‡è¿™ä¸ªæ¥æ”¹å˜æ ·å¼
+
+	; åˆ¤æ–­å‘é€æ–¹æ˜¯è°ï¼Œ1æ˜¯å¯¹é¢ï¼Œ0æ˜¯è‡ªå·±
+	.if sender == 1
+		; TODO è®¾ç½®å¯Œæ–‡æœ¬æ ·å¼
+		invoke SendMessage, @hChatRoom, EM_REPLACESEL, 1, username
+	.else 
+		; TODO è®¾ç½®å¯Œæ–‡æœ¬æ ·å¼
+		invoke SendMessage, @hChatRoom, EM_REPLACESEL, 1, addr szMe
+	.endif
+
+	invoke SendMessage, @hChatRoom, EM_REPLACESEL, 1, addr szColon ; ç”¨æˆ·åååŠ ä¸ªå†’å·
+
+	invoke SendMessage, @hChatRoom, EM_REPLACESEL, 1, addr szNewLine ; æ¢è¡Œ
+
+	; å†™å…¥æ–‡æœ¬ï¼Œä¸ºäº†æ”¯æŒå›¾ç‰‡ï¼Œç”šè‡³æ–‡ä»¶ä¼ è¾“ï¼Œéœ€è¦ä½¿ç”¨æ–‡æœ¬æµï¼ˆText Streamingï¼‰
+	mov @editStream.pfnCallback, offset _streamWriteCallBack
+	mov eax, msg
+	mov @ptr, eax
+	lea eax, @ptr
+	mov @editStream.dwCookie, eax
+	mov @editStream.dwError, 1
+	invoke SendMessage, @hChatRoom, EM_STREAMIN, SF_RTF or SFF_SELECTION, addr @editStream
+
+	invoke SendMessage, @hChatRoom, EM_REPLACESEL, 1, addr szNewLine ; æ¢è¡Œ
+	ret
+_addMsg ENDP
+
+;----------------------------------------------------------
+_changeFriendStatus PROC USES eax ecx esi, username:DWORD, status:DWORD
+; æ”¹å˜æœ‹å‹çš„çŠ¶æ€
+;----------------------------------------------------------
 	local @item: LVITEM
 	local @row: DWORD
-	mov esi, ptrUsers
+	; éå†Useré“¾è¡¨ï¼Œæ‰¾å‡ºå¯¹åº”User
+	mov @row, 0	; åˆ©ç”¨@rowè®¡æ•°ï¼Œå¾—åˆ°å¯¹åº”userè¡Œæ•°
+	mov esi, UsersNodeList
 	.while esi != 0
-		mov edi, (USER ptr [esi]).username
-		invoke crt_strcmp, edi, username
+		invoke crt_strcmp, (User ptr [esi]).username, username
 		.if eax == 0
 			.break
 		.endif
-		mov esi, (USER ptr [esi]).pNext
+		inc @row
+		mov esi, (User ptr [esi]).nextPtr
 	.endw
-	.if esi != 0
-		mov @item.imask, LVIF_TEXT
-		mov eax, (USER ptr [esi]).row
-		mov @item.iItem, eax
-		mov @item.iSubItem, 1
-		mov eax, status
-		mov (USER ptr [esi]).status, eax
-		.if status == 1
-			mov eax, offset szOnline
-		.else
-			mov eax, offset szOffline
-		.endif
-		mov @item.pszText, eax
-		mov @item.cchTextMax, 16
-		invoke SendMessage, hListView, LVM_SETITEM, 0, addr @item
-		invoke SwitchSession, (USER ptr [esi]).row
-	.endif
-	ret
-ChangeFriendStatus ENDP
+	mov eax, status
+	mov (User ptr [esi]).status, eax
 
-ClientProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, lParam:DWORD
+	mov @item.imask, LVIF_TEXT
+	mov @item.iSubItem, 1
+	.if status == 1
+		mov eax, offset szOnline
+	.elseif status ==2
+		mov eax, offset szOffline
+	.elseif status == 3
+		mov eax, offset szPadding
+	.elseif status == 4
+		mov eax, offset szApplyPass
+	.elseif status == 5
+		mov eax, offset szApplyReject
+	.elseif status == 6
+		mov eax, offset szDelete
+	.endif
+	mov @item.pszText, eax
+	invoke SendMessage, hFriendList, LVM_SETITEMTEXT, @row, addr @item
+
+	ret
+_changeFriendStatus ENDP
+
+;-------------------------------------------------------------------------
+_deleteUserFromList PROC USES eax ebx esi edi, username:DWORD, hListView:DWORD
+; å°†ç»™å®šusernameçš„ç”¨æˆ·ä»ç»™å®šçš„listviewä¸­åˆ é™¤
+;--------------------------------------------------------------------------
+	local @item: LV_ITEM
+	local @row: DWORD
+	local @lastPtr: DWORD
+	local @rowCount: DWORD
+	local @buffer[128]: DWORD
+	; éå†Useré“¾è¡¨ï¼Œæ‰¾å‡ºå¯¹åº”User
+	mov @row, 0	; åˆ©ç”¨@rowè®¡æ•°ï¼Œå¾—åˆ°å¯¹åº”userè¡Œæ•°
+
+	; å¦‚æœæ“ä½œå¯¹è±¡ListViewæ˜¯å¤§å…ï¼Œè·³è¿‡ä»é“¾è¡¨ä¸­åˆ é™¤çš„æ­¥éª¤
+	mov eax, hListView
+	cmp eax, hOnlineUserList
+	je L1
+
+	; å¦‚æœåˆ é™¤çš„æ˜¯é“¾è¡¨å¤´ï¼Œç›´æ¥å°†é“¾è¡¨å¤´å‘åç§»ä½
+	mov esi, UsersNodeList
+	invoke crt_strcmp, (User ptr [esi]).username, username
+	.if eax == 0
+		mov ebx, (User ptr [esi]).nextPtr
+		mov UsersNodeList, ebx
+		jmp L1
+	.endif
+
+	; å¼€å§‹éå†é“¾è¡¨æ‰¾åˆ°ç›®æ ‡
+	mov @lastPtr, esi
+	.while esi != 0
+		invoke crt_strcmp, (User ptr [esi]).username, username
+		.if eax == 0
+			mov edi, @lastPtr
+			mov ebx,  (User ptr [esi]).nextPtr
+			mov (User ptr [edi]).nextPtr, ebx
+			.break
+		.endif
+		inc @row
+		mov @lastPtr, esi
+		mov esi, (User ptr [esi]).nextPtr
+	.endw
+
+L1:
+	; æ¥ä¸‹æ¥å°†ç”¨æˆ·ä»ListViewä¸­åˆ é™¤
+	mov @row, 0
+	invoke SendMessage, hListView, LVM_GETITEMCOUNT, 0, 0
+	mov @rowCount, eax
+	mov @item.iSubItem, 0
+	mov @item.cchTextMax, 128
+	lea eax, @buffer
+	mov @item.pszText, eax
+	mov ebx, @rowCount
+	.while @row != ebx
+		invoke SendMessage, hListView, LVM_GETITEMTEXT, @row, addr @item
+		invoke crt_strcmp, @item.pszText , username
+		.if eax == 0
+			invoke SendMessage, hListView, LVM_DELETEITEM, @row, 0
+			.break
+		.endif
+		inc @row
+	.endw
+	ret
+_deleteUserFromList ENDP
+
+;----------------------------------------------------------
+_switchChatRoom PROC USES eax esi edi, row:DWORD, isHall:Byte
+; åˆ‡æ¢å½“å‰çš„èŠå¤©å®¤ï¼ŒisHall == 1 è¡¨ç¤ºåˆ‡æ¢åˆ°å¤§å…ï¼Œå¦åˆ™åˆ‡æ¢åˆ°å¯¹åº”çš„Usernameçš„èŠå¤©å®¤
+;----------------------------------------------------------
+	local @item:LV_ITEM
+	local @username:DWORD
+	local @buffer[128]:DWORD
+	; å¦‚æœåˆ‡æ¢åˆ°å¤§å…,éšè—åŸæ¥çš„çª—å£ï¼Œèµ‹å€¼ä¸º0ã€‚
+	.if isHall == 1
+		mov edi, currentUser
+		.if currentUser != 0
+			invoke ShowWindow, (User ptr [edi]).hChatRoom, SW_HIDE
+			mov currentUser, 0
+		.endif
+		invoke ShowWindow, hChatRoom, SW_SHOW
+		jmp SetName
+	.endif
+
+	; å…ˆé€šè¿‡rowæ‰¾åˆ°å¯¹åº”çš„username
+	mov @item.iSubItem, 0
+	lea eax, @buffer
+	mov @item.pszText, eax
+	mov @item.cchTextMax, 128
+	invoke SendMessage, hFriendList, LVM_GETITEMTEXT, row, addr @item
+	.if eax == 0 ; æ‰¾ä¸åˆ°åˆ™é€€å‡º
+		jmp QUIT
+	.endif
+	mov esi, @item.pszText
+	mov @username, esi
+
+
+	mov esi, UsersNodeList
+	.while esi != 0
+		invoke crt_strcmp, @username, (User ptr [esi]).username
+		.if eax == 0
+			; å¦‚æœcurrentUserä¸ä¸º0ï¼Œéšè—ä»–çš„çª—å£
+			mov edi, currentUser
+			.if edi != 0
+				invoke ShowWindow, (User ptr [edi]).hChatRoom, SW_HIDE
+			.else 
+				; å¦‚æœä¸º0 éšè—å¤§å…çª—å£
+				invoke ShowWindow, hChatRoom, SW_HIDE
+			.endif
+			; èµ‹å€¼
+			mov currentUser, esi
+			invoke ShowWindow, (User ptr [esi]).hChatRoom, SW_SHOW
+			.break
+		.endif
+		mov esi, (User ptr [esi]).nextPtr
+	.endw
+
+	; æ ¹æ®å½“å‰ç”¨æˆ·åœ¨çº¿æƒ…å†µæ¥å†³å®šsendæŒ‰é’®æ˜¯å¦å¯ä»¥æŒ‰ä¸‹
+	mov esi, currentUser
+	mov eax, (User ptr [esi]).status
+	.if eax == 1
+		invoke EnableWindow, hMessageEditorSendButton, 1
+	.elseif eax == 4
+		invoke EnableWindow, hMessageEditorSendButton, 1
+	.else
+		invoke EnableWindow, hMessageEditorSendButton, 0
+	.endif
+
+SetName:
+	; åœ¨æŸä¸ªåœ°æ–¹æ˜¾ç¤ºå½“å‰å¯¹è¯çš„èŠå¤©å®¤
+	.if currentUser == 0
+		invoke SendMessage, hCurrentChatRoomNameEdit, WM_SETTEXT, 0, addr szHallChatRoom
+	.else
+		mov esi, currentUser
+		invoke SendMessage, hCurrentChatRoomNameEdit, WM_SETTEXT, 0, (User ptr [esi]).username
+	.endif
+		
+
+QUIT:
+	ret
+_switchChatRoom ENDP
+
+;---------------------------------------------------------
+_connect PROC USES eax edx esi
+; è·å–IP å’Œ PORTè¾“å…¥æ¡†ä¸­çš„å€¼ï¼Œå¹¶è¿æ¥server
+; å‚æ•°æ­£ç¡®åˆ™è¿”å›1ï¼Œ å¦åˆ™è¿”å›0
+;---------------------------------------------------------
+	local @IP:DWORD
+	local @PORT:DWORD
+
+	;mov @IP[0], 128
+	invoke GlobalAlloc, GPTR, 128
+	mov @IP, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @IP
+
+	invoke GlobalAlloc, GPTR, 128
+	mov esi, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, esi
+	invoke crt_sscanf, esi, addr FORMAT_INT, addr @PORT
+	; TODO è°ƒç”¨Clientä¸­çš„ç™»é™†å‡½æ•°
+QUIT:
+	ret
+_connect ENDP
+
+;--------------------------------------------------------
+_logon PROC USES eax
+; è·å–ç”¨æˆ·åï¼Œå¹¶æ³¨å†Œ
+;--------------------------------------------------------
+	local @username:DWORD
+	invoke GlobalAlloc, GPTR, 128
+	mov @username, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @username
+
+	;TODO å‘serverå‘é€æ³¨å†Œè¯·æ±‚
+	ret
+_logon ENDP
+
+;--------------------------------------------------------
+_login PROC USES eax
+; è·å–ç”¨æˆ·åï¼Œå¹¶ç™»å½•
+;--------------------------------------------------------
+	local @username:DWORD
+	invoke GlobalAlloc, GPTR, 128
+	mov @username, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @username
+
+	;TODO å‘serverå‘é€ç™»å½•è¯·æ±‚
+	ret
+_login ENDP
+
+;---------------------------------------------------------
+_createUI PROC USES eax
+; è¿™é‡Œæ˜¯åˆå§‹åŒ–çª—å£UIçš„å‡½æ•°, åœ¨ClientWindowProcé‡Œè°ƒç”¨ï¼ˆå¤§æ¦‚ï¼‰
+; æ¯ä¸ªç”¨æˆ·å¯¹åº”çš„èŠå¤©çª—æ˜¯åŠ¨æ€åˆ›å»ºçš„ï¼Œä¸åœ¨è¿™å„¿ã€‚
+;----------------------------------------------------------
+	; åˆ›å»ºç™»å½•æ 
+
+	; Addressæ ‡ç­¾
+	invoke CreateWindowEx, NULL, addr szStatic, addr szAddress, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	20,20,60,20,\
+	hWinMain, 0, hInstance, NULL
+	;Address è¾“å…¥æ¡†
+	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	80,20,150,20,\
+	hWinMain, 0, hInstance, NULL
+	mov hAddrInput, eax
+	;invoke SendMessage, hNewEdit, WM_SETFONT, hFont, 0
+
+	; PORTæ ‡ç­¾
+	invoke CreateWindowEx, NULL, addr szStatic, addr szPort, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	250,20,60,20,\
+	hWinMain, 0, hInstance, NULL
+	;PORT è¾“å…¥æ¡†
+	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	290,20,150,20,\
+	hWinMain, 0, hInstance, NULL
+	mov hPortInput, eax
+
+	; Username æ ‡ç­¾
+	invoke CreateWindowEx, NULL, addr szStatic, addr szUsername, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	460,20,80,20,\
+	hWinMain, 0, hInstance, NULL
+	; Username è¾“å…¥æ¡†
+	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	540,20,150,20,\
+	hWinMain, 0, hInstance, NULL
+	mov hUsernameInput, eax
+
+	; å½“å‰èŠå¤©å®¤åç§°å±•ç¤ºæ¡†
+	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	350,50,150,20,\
+	hWinMain, 0, hInstance, NULL
+	mov hCurrentChatRoomNameEdit, eax
+
+	; loginæŒ‰é’® å¥æŸ„1
+	invoke CreateWindowEx, NULL, addr szButton, addr szLogin, \
+	WS_VISIBLE or WS_CHILD, \
+	710,20,60,20,\
+	hWinMain, LOGIN_BUTTON_HANDLE, hInstance, NULL
+	mov hLoginButton, eax
+	;invoke EnableWindow, hSendButton, 0
+	;invoke SendMessage, hSendButton, WM_SETFONT, hFont, 0
+
+	; logonæŒ‰é’® å¥æŸ„2
+	invoke CreateWindowEx, NULL, addr szButton, addr szLogon, \
+	WS_VISIBLE or WS_CHILD, \
+	800,20,60,20,\
+	hWinMain, LOGON_BUTTON_HANDLE, hInstance, NULL
+	mov hLogonButton, eax
+	;invoke EnableWindow, hSendButton, 0
+	;invoke SendMessage, hSendButton, WM_SETFONT, hFont, 0
+
+	; sendæŒ‰é’® å¥æŸ„3
+	invoke CreateWindowEx, NULL, addr szButton, addr szSend, \
+	WS_VISIBLE or WS_CHILD, \
+	1100,620,100,40,\
+	hWinMain, SEND_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageEditorSendButton, eax
+
+	; clearæŒ‰é’® å¥æŸ„4
+	invoke CreateWindowEx, NULL, addr szButton, addr szClear, \
+	WS_VISIBLE or WS_CHILD, \
+	960,620,100,40,\
+	hWinMain, CLEAR_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageEditorClearButton, eax
+
+	; addFriendæŒ‰é’® å¥æŸ„5
+	invoke CreateWindowEx, NULL, addr szButton, addr szAddFriend, \
+	WS_VISIBLE or WS_CHILD, \
+	20,45,100,30,\
+	hWinMain, ADD_FRIEND_BUTTON_HANDLE, hInstance, NULL
+	mov hAddFriendButton, eax
+
+	; return to hall æŒ‰é’® å¥æŸ„6
+	invoke CreateWindowEx, NULL, addr szButton, addr szReturnToHall, \
+	WS_VISIBLE or WS_CHILD, \
+	150,45,100,30,\
+	hWinMain, RETURN_TO_HALL_BUTTON_HANDLE, hInstance, NULL
+	mov hReturnToHallButton, eax
+
+	; delete friend æŒ‰é’® å¥æŸ„7
+	invoke CreateWindowEx, NULL, addr szButton, addr szDeleteFriend, \
+	WS_VISIBLE or WS_CHILD, \
+	20,340,100,30,\
+	hWinMain, DELETE_FRIEND_BUTTON_HANDLE, hInstance, NULL
+	mov hDeleteFriendButton, eax
+
+	; connectæŒ‰é’® å¥æŸ„8
+	invoke CreateWindowEx, NULL, addr szButton, addr szConnect, \
+	WS_VISIBLE or WS_CHILD, \
+	900,20,60,20,\
+	hWinMain, CONNECT_BUTTON_HANDLE, hInstance, NULL
+	mov hConnectButton, eax
+
+	; åˆ›å»ºèŠå¤©æ˜¾ç¤ºæ¡†
+	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
+	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL or ES_READONLY,\
+	350, 80, 860, 360,\
+	hWinMain, 0, hInstance, NULL
+	mov hChatRoom, eax
+
+	; åˆ›å»ºèŠå¤©è¾“å…¥æ¡†
+	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
+	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL,\
+	350, 500, 860, 100,\
+	hWinMain, 0, hInstance, NULL
+	mov hMessageEditor, eax
+
+	; åˆ›å»ºå¤§å…ç”¨æˆ·åˆ—è¡¨ï¼Œå¥½å‹åˆ—è¡¨ï¼ˆè°ƒç”¨_createListViewå‡½æ•°ï¼‰
+	invoke _createListView
+	ret
+_createUI ENDP
+
+;----------------------------------------------------------
+_ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, lParam:DWORD
+; ä¸»çª—å£è¿‡ç¨‹
+;----------------------------------------------------------
 	local @stPs:PAINTSTRUCT
 	local @stRect:RECT
 	local @hDc
+	local @username :DWORD
 
 	mov eax, uMsg
 
-	.if eax == WM_PAINT
-		invoke BeginPaint,hWnd,addr @stPs
-		mov @hDc,eax
-
-		invoke GetClientRect, hWnd, addr @stRect
-		;invoke DrawText, @hDc, addr szText, -1, addr @stRect, DT_SINGLELINE or DT_CENTER or DT_VCENTER  ;ÕâÀï½«ÏÔÊ¾szTextÀïµÄ×Ö·û´®
-		invoke EndPaint, hWnd, addr @stPs
-	
-	.elseif eax == WM_CLOSE  ;´°¿Ú¹Ø±ÕÏûÏ¢
+	.if eax == WM_CLOSE
 		invoke DestroyWindow, hWinMain
 		invoke PostQuitMessage, NULL
-
-	.elseif eax == WM_CREATE
+	.elseif eax == WM_CREATE ; çª—å£åˆå§‹åŒ–
 		mov eax, hWnd
 		mov hWinMain, eax
-		invoke crt_malloc, bufSize
-		mov ptrBuffer, eax
+		;invoke crt_malloc, bufSize
+		;mov ptrBuffer, eax
+		invoke _createUI 
 
-		invoke CreateUserLabel, addr strUsername
-		invoke InitUI
-		;invoke AppendFriend, addr szUsername, 1, 1 
-		;invoke AppendFriend, addr szID, 1, 1 
+		;------------------------------------------------
+		; åŠŸèƒ½æµ‹è¯•ä»£ç ï¼Œæµ‹è¯•å®Œååº”å½“åˆ é™¤
+		;invoke _addUserToList, addr szUsername, 2, hFriendList
+		invoke _addUserToList, addr szUsername, 1, hOnlineUserList
+		invoke _addUserToList, addr szStatic, 1, hOnlineUserList
+		;------------------------------------------------
 
-	.elseif eax == WM_COMMAND  ;µã»÷Ê±ºò²úÉúµÄÏûÏ¢ÊÇWM_COMMAND
-		mov eax, wParam  ;ÆäÖĞ²ÎÊıwParamÀï´æµÄÊÇ¾ä±ú£¬Èç¹ûµã»÷ÁËÒ»¸ö°´Å¥£¬ÔòwParamÊÇÄÇ¸ö°´Å¥µÄ¾ä±ú
-		.if eax == 1  ;½Ó×ÅÔòÅĞ¶Ï¾ä±úÊÇ¶àÉÙµÃÖªÊÇÄÄ¸ö°´Å¥±»°´ÏÂÁË£¬´Ó¶ø×öÏàÓ¦µÄ²Ù×÷£¬Õâ¸öÀı×ÓÊÇ¾ä±úÎª1µÄ°´Å¥±»°´ÏÂ£¬Õâ½«´´½¨Ò»¸ö¾ä±úÎª2µÄ°´Å¥
-			invoke SendMsg
-		.elseif eax == 2
-			invoke GlobalAlloc, GPTR, 128
-			mov esi, eax
-			invoke SendMessage, hNewEdit, WM_GETTEXT, 128, esi
-			invoke chat_addFriend, esi
-			.if eax == 1
-				invoke MessageBox, hWinMain, addr szAddfriendSuccess, addr szAddfriend, MB_OK
-			.else
-				invoke MessageBox, hWinMain, addr szFailed, addr szAddfriend, MB_OK
-			.endif
-			invoke GlobalFree, esi
+		invoke _switchChatRoom, 0, 1 ;å°†å½“å‰çª—å£åˆ‡æ¢åˆ°å¤§å…
+	.elseif eax == WM_COMMAND ; æŒ‰é’®æŒ‰ä¸‹
+		mov eax, wParam
+		.if eax == LOGIN_BUTTON_HANDLE 
+			;ç™»å½•
+			invoke _login
+		.elseif eax == LOGON_BUTTON_HANDLE
+			;æ³¨å†Œ
+			invoke _logon
+		.elseif eax == ADD_FRIEND_BUTTON_HANDLE 
+			;åŠ å¥½å‹
+			invoke _getUsernameByRow, curOnlineListRow, hOnlineUserList
+			invoke _addUserToList, addr ptrUsername, 3, hFriendList 
+			; TODO å‘Serverå‘é€è¯·æ±‚
+		.elseif eax == RETURN_TO_HALL_BUTTON_HANDLE 
+			;è¿”å›å¤§å…
+			invoke _switchChatRoom, 0, 1
+		.elseif eax == DELETE_FRIEND_BUTTON_HANDLE
+			;åˆ é™¤å¥½å‹
+			invoke _getUsernameByRow, curFriendListRow, hFriendList
+			invoke _deleteUserFromList, addr ptrUsername, hFriendList
+			; TODO å‘Serverå‘é€è¯·æ±‚
+		.elseif	eax == CONNECT_BUTTON_HANDLE 
+			;è¿æ¥æœåŠ¡å™¨
+			invoke _connect
 		.endif
 	.elseif eax == WM_NOTIFY
-		mov esi,lParam
+		mov esi, lParam
+		mov edi, wParam ;å‘å‡ºæ¶ˆæ¯çš„æ§ä»¶çš„å¥æŸ„
 		assume esi:ptr NMHDR
-		.if [esi].code == NM_DBLCLK 
-			assume esi:ptr NMITEMACTIVATE
-			mov edi, [esi].iItem
-			invoke SwitchSession, edi
+		.if [esi].code == NM_DBLCLK
+			.if edi == 2 ;ä»FriendListå‘å‡º
+				assume esi:ptr NMITEMACTIVATE
+				mov edi, [esi].iItem
+				invoke _switchChatRoom, edi, 0
+			.endif
 		.endif
+		assume esi:ptr NMHDR
+		.if [esi].code == NM_CLICK
+			.if edi == 1 ; ä»OnlineListå‘å‡º
+				assume esi:ptr NMITEMACTIVATE
+				mov edi, [esi].iItem
+				mov curOnlineListRow, edi
+			.elseif edi == 2; ä»FriendListå‘å‡º
+				assume esi:ptr NMITEMACTIVATE
+				mov edi, [esi].iItem
+				mov curFriendListRow, edi
+			.endif
+		.endif
+	.elseif eax == WM_APPENDNEWUSER ; æ–°çš„ç”¨æˆ·ç™»å½•è¿›å…¥å¤§å…
+		invoke _addUserToList, wParam, 1, hOnlineUserList
 	.elseif eax == WM_APPENDFRIEND
-		invoke AppendFriend, wParam, lParam, 0
-	.elseif eax == WM_APPENDMSG
-		invoke AppendMsg, wParam, lParam, eax, 0
-	.elseif eax == WM_CHANGESTATUS
-		invoke ChangeFriendStatus, wParam, lParam
+		invoke _addUserToList, wParam, 1, hFriendList
+	.elseif eax == WM_APPENDROOMMSG
+		; TODO å‘å¤§å…èŠå¤©å®¤å‘ä¿¡
+	.elseif eax == WM_APPEND1TO1MSG
+		; TODO å‘ç§èŠçª—å£å‘ä¿¡
+	.elseif eax == WM_CHANGEFRIENDSTATUS
+		; TODO åˆ‡æ¢å¥½å‹çŠ¶æ€
 	.else
 		invoke DefWindowProc, hWnd, uMsg, wParam, lParam
 		ret
 	.endif
-
 	mov eax, 0
 	ret
-ClientProc ENDP
+_ClientWindowProc ENDP
 
-ClientMain PROC  ;´°¿Ú³ÌĞò
-	local @stWndClass:WNDCLASSEX  ;¶¨ÒåÁËÒ»¸ö½á¹¹±äÁ¿£¬ËüµÄÀàĞÍÊÇWNDCLASSEX£¬Ò»¸ö´°¿ÚÀà¶¨ÒåÁË´°¿ÚµÄÒ»Ğ©Ö÷ÒªÊôĞÔ£¬Í¼±ê£¬¹â±ê£¬±³¾°É«µÈ£¬ÕâĞ©²ÎÊı²»ÊÇµ¥¸ö´«µİ£¬¶øÊÇ·â×°ÔÚWNDCLASSEXÖĞ´«µİµÄ¡£
-	local @stMsg:MSG	;»¹¶¨ÒåÁËstMsg£¬ÀàĞÍÊÇMSG£¬ÓÃÀ´×÷ÏûÏ¢´«µİµÄ
 
-	;invoke GetModuleHandle, NULL  ;µÃµ½Ó¦ÓÃ³ÌĞòµÄ¾ä±ú£¬°Ñ¸Ã¾ä±úµÄÖµ·ÅÔÚhInstanceÖĞ£¬¾ä±úÊÇÊ²Ã´£¿¼òµ¥µãÀí½â¾ÍÊÇÄ³¸öÊÂÎïµÄ±êÊ¶£¬ÓĞÎÄ¼ş¾ä±ú£¬´°¿Ú¾ä±ú£¬¿ÉÒÔÍ¨¹ı¾ä±úÕÒµ½¶ÔÓ¦µÄÊÂÎï
+
+;----------------------------------------------------------
+_ClientWindowMain PROC
+; ä¸»çª—å£ç¨‹åº
+;----------------------------------------------------------
+	local @stWndClass:WNDCLASSEX
+	local @stMsg:MSG
+
 	mov hInstance, eax
-	invoke RtlZeroMemory, addr @stWndClass,sizeof @stWndClass  ;½«stWndClass³õÊ¼»¯È«0
 
-	;Õâ²¿·ÖÊÇ³õÊ¼»¯stWndClass½á¹¹ÖĞ¸÷×Ö¶ÎµÄÖµ£¬¼´´°¿ÚµÄ¸÷ÖÖÊôĞÔ
-	INVOKE LoadIcon, NULL, IDI_APPLICATION
-	mov @stWndClass.hIcon, eax
-	INVOKE LoadCursor, NULL, IDC_ARROW
-	mov @stWndClass.hCursor, eax
+	; åˆå§‹åŒ–stWndClass
+	invoke RtlZeroMemory, addr @stWndClass, sizeof @stWndClass
 	mov eax, hInstance
 	mov @stWndClass.hInstance, eax
-	mov @stWndClass.cbSize, sizeof WNDCLASSEX
+	invoke LoadIcon, NULL, IDI_APPLICATION	; åŠ è½½é»˜è®¤åº”ç”¨ç¨‹åºå›¾æ ‡
+	mov @stWndClass.hIcon, eax
+	invoke LoadCursor, NULL, IDC_ARROW	;åŠ è½½é¼ æ ‡
+	mov @stWndClass.hCursor, eax
+	mov @stWndClass.cbSize, sizeOf WNDCLASSEX
 	mov @stWndClass.style, CS_HREDRAW or CS_VREDRAW
-	mov @stWndClass.lpfnWndProc,offset ClientProc
 	mov @stWndClass.hbrBackground, COLOR_WINDOW
-	mov @stWndClass.lpszClassName,offset szClientWindow
-	invoke RegisterClassEx, addr @stWndClass  ; ×¢²á´°¿ÚÀà£¬×¢²áÇ°ÏÈÌîĞ´²ÎÊıWNDCLASSEX½á¹¹
+	mov @stWndClass.lpszClassName, offset szClientWindowClassName
+	mov @stWndClass.lpfnWndProc, offset _ClientWindowProc
+	invoke RegisterClassEx, addr @stWndClass ; å°†è®¾ç½®å¥½çš„stWndClassè¿›è¡Œæ³¨å†Œ
 
-	invoke CreateWindowEx, WS_EX_CLIENTEDGE,\  ; ½¨Á¢´°¿Ú
-			offset szClientWindow,offset szClient,\  ; szClassNameºÍszCaptionMainÊÇÔÚ³£Á¿¶ÎÖĞ¶¨ÒåµÄ×Ö·û´®³£Á¿
-			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 960, 640, \	;szClassNameÊÇ½¨Á¢´°¿ÚÊ¹ÓÃµÄÀàÃû×Ö·û´®Ö¸Õë
-			NULL,NULL,hInstance,NULL		; Èç¹û¸Ä³É'button'ÄÇÃ´½¨Á¢µÄ½«ÊÇÒ»¸ö°´Å¥£¬szCaptionMain´ú±íµÄÔòÊÇ´°¿ÚµÄÃû³Æ£¬¸ÃÃû³Æ»áÏÔÊ¾ÔÚ±êÌâÀ¸ÖĞ
-
-	invoke ShowWindow, hWinMain, SW_SHOWNORMAL  ; ÏÔÊ¾´°¿Ú
-	invoke UpdateWindow, hWinMain  ; Ë¢ĞÂ´°¿Ú¿Í»§Çø
-
-	.while TRUE  ;½øÈëÎŞÏŞµÄÏûÏ¢»ñÈ¡ºÍ´¦ÀíµÄÑ­»·
-		invoke GetMessage,addr @stMsg, 0, 0, 0  ;´ÓÏûÏ¢¶ÓÁĞÖĞÈ¡³öµÚÒ»¸öÏûÏ¢£¬·ÅÔÚstMsg½á¹¹ÖĞ
-		.break .if eax==0  ; Èç¹ûÊÇÍË³öÏûÏ¢£¬eax½«»áÖÃ³É0£¬ÍË³öÑ­»·
-		invoke TranslateMessage,addr @stMsg  ;ÕâÊÇ°Ñ»ùÓÚ¼üÅÌÉ¨ÃèÂëµÄ°´¼üĞÅÏ¢×ª»»³É¶ÔÓ¦µÄASCIIÂë£¬Èç¹ûÏûÏ¢²»ÊÇÍ¨¹ı¼üÅÌÊäÈëµÄ£¬Õâ²½½«Ìø¹ı
-		invoke DispatchMessage,addr @stMsg  ;ÕâÌõÓï¾äµÄ×÷ÓÃÊÇÕÒµ½¸Ã´°¿Ú³ÌĞòµÄ´°¿Ú¹ı³Ì£¬Í¨¹ı¸Ã´°¿Ú¹ı³ÌÀ´´¦ÀíÏûÏ¢
-	.endw
-	ret
-ClientMain ENDP
-
-LogProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, lParam:DWORD  ;´°¿Ú¹ı³Ì
-	local @stPs:PAINTSTRUCT
-	local @stRect:RECT
-	local @hDc
-
-	mov eax, uMsg
-
-	.if eax == WM_PAINT
-		invoke BeginPaint,hWnd,addr @stPs
-		mov @hDc,eax
-
-		invoke GetClientRect, hWnd, addr @stRect
-
-		;invoke DrawText, @hDc, addr szText, -1, addr @stRect, DT_SINGLELINE or DT_CENTER or DT_VCENTER  ;ÕâÀï½«ÏÔÊ¾szTextÀïµÄ×Ö·û´®
-		invoke EndPaint, hWnd, addr @stPs
+	; å»ºç«‹çª—å£
+	invoke CreateWindowEx, WS_EX_CLIENTEDGE, offset szClientWindowClassName, offset szClientWindowName,\
+			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,\
+			1280, 720,\ ; åº”è¯¥æ˜¯çª—å£å¤§å°
+			NULL, NULL, hInstance, NULL
 	
-	.elseif eax == WM_CLOSE  ;´°¿Ú¹Ø±ÕÏûÏ¢
-		invoke DestroyWindow, hWinMain
-		invoke PostQuitMessage, NULL
+	invoke ShowWindow, hWinMain, SW_SHOWNORMAL
+	invoke UpdateWindow, hWinMain
 
-	.elseif eax == WM_CREATE  ;´´½¨´°¿Ú  ÏÂÃæ´úÂë±íÊ¾´´½¨Ò»¸ö°´Å¥£¬ÆäÖĞbutton×Ö·û´®ÖµÊÇ'button'£¬ÔÚÊı¾İ¶Î¶¨Òå£¬±íÊ¾Òª´´½¨µÄÊÇÒ»¸ö°´Å¥£¬showButton±íÊ¾¸Ã°´Å¥ÉÏµÄÏÔÊ¾ĞÅÏ¢
-		mov eax, hWnd
-		mov hWinMain,eax
 
-		invoke GetStockObject, DEFAULT_GUI_FONT
-		mov hFont, eax
-		invoke GetStockObject, DKGRAY_BRUSH
-		mov hBrush, eax
-
- 		invoke CreateWindowEx,NULL, addr szStatic, addr szUsername,\
-		WS_CHILD or WS_VISIBLE or SS_CENTER or SS_CENTERIMAGE, 20, 20, 60, 20,
-		hWnd, 0, hInstance,NULL
-		invoke SendMessage, eax, WM_SETFONT, hFont,	0
-
-		invoke CreateWindowEx, NULL, addr szEdit, NULL,\
-		WS_CHILD or WS_VISIBLE or WS_BORDER or SS_CENTERIMAGE, 90, 20, 210, 20,\  
-		hWnd, 0, hInstance, NULL
-		mov hUsernameEdit, eax
-		invoke SendMessage, hUsernameEdit, WM_SETFONT, hFont, 0
-
-		invoke CreateWindowEx,NULL, addr szStatic, addr szPassword,\
-		WS_CHILD or WS_VISIBLE or SS_CENTER or SS_CENTERIMAGE, 20, 60, 60, 20,
-		hWnd, 0,hInstance,NULL
-		invoke SendMessage, eax, WM_SETFONT, hFont, 0
-
-		invoke CreateWindowEx, NULL, addr szEdit, NULL,\
-		WS_CHILD or WS_VISIBLE or WS_BORDER or ES_PASSWORD or SS_CENTERIMAGE, 90, 60, 210, 20,\
-		hWnd, 0, hInstance, NULL
-		mov hPasswordEdit, eax
-		invoke SendMessage, hPasswordEdit, WM_SETFONT, hFont, 0
-
-		invoke CreateWindowEx, NULL, addr szButton, addr szLogin,\
-		WS_TABSTOP or WS_VISIBLE or WS_CHILD or BS_DEFPUSHBUTTON, 50, 95, 80, 23,
-		hWnd, 1, hInstance,NULL
-		invoke SendMessage, eax, WM_SETFONT, hFont, 0
-
-		invoke CreateWindowEx, NULL, addr szButton, addr szLogon,\
-		WS_TABSTOP or WS_VISIBLE or WS_CHILD or BS_DEFPUSHBUTTON, 210, 95, 80, 23,
-		hWnd, 2, hInstance,NULL
-		invoke SendMessage, eax, WM_SETFONT, hFont, 0
-
-	.elseif eax == WM_COMMAND  ;µã»÷Ê±ºò²úÉúµÄÏûÏ¢ÊÇWM_COMMAND
-		mov eax, wParam  ;ÆäÖĞ²ÎÊıwParamÀï´æµÄÊÇ¾ä±ú£¬Èç¹ûµã»÷ÁËÒ»¸ö°´Å¥£¬ÔòwParamÊÇÄÇ¸ö°´Å¥µÄ¾ä±ú
-		.if eax == 1
-			invoke GetWindowText, hUsernameEdit, addr strUsername, 128
-			invoke GetWindowText, hPasswordEdit, addr strPassword, 128
-			invoke crt_strlen, addr strUsername
-			.if eax == 0
-				jmp L1
-			.endif
-			invoke crt_strlen, addr strPassword
-			.if eax == 0
-				jmp L1
-			.endif
-			mov edi, eax
-
-			invoke chat_login, addr strUsername, addr strPassword
-			.if eax == 1
-				invoke DestroyWindow, hWinMain
-				invoke PostQuitMessage, NULL
-				invoke ClientMain
-			.else
-				invoke MessageBox, hWinMain, addr szFailed, addr szText, MB_OK
-			.endif
-		.elseif eax == 2
-			invoke GetWindowText, hUsernameEdit, addr strUsername, 128
-			invoke GetWindowText, hPasswordEdit, addr strPassword, 128
-			invoke crt_strlen, addr strUsername
-			.if eax == 0
-				jmp L1
-			.endif
-			invoke crt_strlen, addr strPassword
-			.if eax == 0
-				jmp L1
-			.endif
-
-			invoke chat_sign_in, addr strUsername, addr strPassword
-			.if eax == 1
-				invoke MessageBox, hWinMain, addr szSuccess, addr szText, MB_OK
-			.else
-				invoke MessageBox, hWinMain, addr szFailed, addr szText, MB_OK
-			.endif
-		.endif
-	.else  ;·ñÔò°´Ä¬ÈÏ´¦Àí·½·¨´¦ÀíÏûÏ¢
-		invoke DefWindowProc, hWnd, uMsg, wParam, lParam
-		ret
-	.endif
-L1:
-	mov eax, 0
-	ret
-LogProc ENDP
-
-LogMain PROC  ;´°¿Ú³ÌĞò
-	local @stWndClass:WNDCLASSEX  ;¶¨ÒåÁËÒ»¸ö½á¹¹±äÁ¿£¬ËüµÄÀàĞÍÊÇWNDCLASSEX£¬Ò»¸ö´°¿ÚÀà¶¨ÒåÁË´°¿ÚµÄÒ»Ğ©Ö÷ÒªÊôĞÔ£¬Í¼±ê£¬¹â±ê£¬±³¾°É«µÈ£¬ÕâĞ©²ÎÊı²»ÊÇµ¥¸ö´«µİ£¬¶øÊÇ·â×°ÔÚWNDCLASSEXÖĞ´«µİµÄ¡£
-	local @stMsg:MSG	;»¹¶¨ÒåÁËstMsg£¬ÀàĞÍÊÇMSG£¬ÓÃÀ´×÷ÏûÏ¢´«µİµÄ
-
-	invoke GetModuleHandle, NULL  ;µÃµ½Ó¦ÓÃ³ÌĞòµÄ¾ä±ú£¬°Ñ¸Ã¾ä±úµÄÖµ·ÅÔÚhInstanceÖĞ£¬¾ä±úÊÇÊ²Ã´£¿¼òµ¥µãÀí½â¾ÍÊÇÄ³¸öÊÂÎïµÄ±êÊ¶£¬ÓĞÎÄ¼ş¾ä±ú£¬´°¿Ú¾ä±ú£¬¿ÉÒÔÍ¨¹ı¾ä±úÕÒµ½¶ÔÓ¦µÄÊÂÎï
-	mov hInstance, eax
-	invoke RtlZeroMemory, addr @stWndClass,sizeof @stWndClass  ;½«stWndClass³õÊ¼»¯È«0
-
-	;Õâ²¿·ÖÊÇ³õÊ¼»¯stWndClass½á¹¹ÖĞ¸÷×Ö¶ÎµÄÖµ£¬¼´´°¿ÚµÄ¸÷ÖÖÊôĞÔ
-	INVOKE LoadIcon, NULL, IDI_APPLICATION
-	mov @stWndClass.hIcon, eax
-	INVOKE LoadCursor, NULL, IDC_ARROW
-	mov @stWndClass.hCursor, eax
-	mov eax, hInstance
-	mov @stWndClass.hInstance, eax
-	mov @stWndClass.cbSize, sizeof WNDCLASSEX
-	mov @stWndClass.style, CS_HREDRAW or CS_VREDRAW
-	mov @stWndClass.lpfnWndProc,offset LogProc
-	mov @stWndClass.hbrBackground, COLOR_WINDOW
-	mov @stWndClass.lpszClassName,offset szLogWindow
-	invoke RegisterClassEx, addr @stWndClass  ;×¢²á´°¿ÚÀà£¬×¢²áÇ°ÏÈÌîĞ´²ÎÊıWNDCLASSEX½á¹¹
-
-	invoke CreateWindowEx, WS_EX_CLIENTEDGE,\  ;½¨Á¢´°¿Ú
-			offset szLogWindow,offset szLogin,\  ;szClassNameºÍszCaptionMainÊÇÔÚ³£Á¿¶ÎÖĞ¶¨ÒåµÄ×Ö·û´®³£Á¿
-			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 340, 180, \	;szClassNameÊÇ½¨Á¢´°¿ÚÊ¹ÓÃµÄÀàÃû×Ö·û´®Ö¸Õë
-			NULL,NULL,hInstance,NULL		;Èç¹û¸Ä³É'button'ÄÇÃ´½¨Á¢µÄ½«ÊÇÒ»¸ö°´Å¥£¬szCaptionMain´ú±íµÄÔòÊÇ´°¿ÚµÄÃû³Æ£¬¸ÃÃû³Æ»áÏÔÊ¾ÔÚ±êÌâÀ¸ÖĞ
-
-	invoke ShowWindow, hWinMain, SW_SHOWNORMAL  ;ÏÔÊ¾´°¿Ú
-	invoke UpdateWindow, hWinMain  ;Ë¢ĞÂ´°¿Ú¿Í»§Çø
-
-	.while TRUE  ;½øÈëÎŞÏŞµÄÏûÏ¢»ñÈ¡ºÍ´¦ÀíµÄÑ­»·
-		invoke GetMessage,addr @stMsg, 0, 0, 0  ;´ÓÏûÏ¢¶ÓÁĞÖĞÈ¡³öµÚÒ»¸öÏûÏ¢£¬·ÅÔÚstMsg½á¹¹ÖĞ
-		.break .if eax==0  ;Èç¹ûÊÇÍË³öÏûÏ¢£¬eax½«»áÖÃ³É0£¬ÍË³öÑ­»·
-		invoke TranslateMessage,addr @stMsg  ;ÕâÊÇ°Ñ»ùÓÚ¼üÅÌÉ¨ÃèÂëµÄ°´¼ü ĞÅÏ¢×ª»»³É¶ÔÓ¦µÄASCIIÂë£¬Èç¹ûÏûÏ¢²»ÊÇÍ¨¹ı¼üÅÌÊäÈëµÄ£¬Õâ²½½«Ìø¹ı
-		invoke DispatchMessage,addr @stMsg  ;ÕâÌõÓï¾äµÄ×÷ÓÃÊÇÕÒµ½¸Ã´°¿Ú³ÌĞòµÄ´°¿Ú¹ı³Ì£¬Í¨¹ı¸Ã´°¿Ú¹ı³ÌÀ´´¦ÀíÏûÏ¢
+	.while TRUE
+		invoke GetMessage, addr @stMsg, 0, 0, 0
+		.break .if eax==0
+		invoke TranslateMessage, addr @stMsg
+		invoke DispatchMessage, addr @stMsg
 	.endw
 	ret
-LogMain ENDP
+_ClientWindowMain ENDP
 
 main PROC
-	invoke StdOut, addr inputipHint
-	invoke crt_scanf, addr inputipFormat, addr tempip
-	invoke StdOut, addr inputportHint
-	invoke crt_scanf, addr inputportFormat, addr tempport
-	invoke setIP, addr tempip, tempport
+	;invoke StdOut, addr inputipHint
+	;invoke crt_scanf, addr inputipFormat, addr tempip
+	;invoke StdOut, addr inputportHint
+	;invoke crt_scanf, addr inputportFormat, addr tempport
+	;invoke setIP, addr tempip, tempport
 	invoke LoadLibrary, addr szMsftedit
 	invoke LoadLibrary, addr szOle32
-	call LogMain
+	call _ClientWindowMain
 	invoke ExitProcess, 0
 	ret
 main ENDP
