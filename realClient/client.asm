@@ -6,16 +6,20 @@ include ws2_32.inc
 include kernel32.inc
 include windows.inc
 include user32.inc
+include masm32rt.inc
 include msvcrt.inc
+include header.inc
 
 includelib ws2_32.lib
 includelib kernel32.lib
 includelib masm32.lib
 includelib user32.lib
+includelib wsock32.lib
 includelib msvcrt.lib
 
 
 ExitProcess PROTO STDCALL:DWORD
+clientFriendReply PROTO :PTR BYTE, :DWORD
 
 ;==================== DATA =======================
 
@@ -33,10 +37,25 @@ FRIEND_REQUEST_CONTENT	db "想要添加您为好友", 0
 
 currentUser db 128 dup(0)
 connSocket dd ?
-extern hWinMain:dword
+
+DEBUG_MSG db "%s", 0ah, 0dh, 0
 
 ;=================== CODE =========================
 .code
+
+printRecvMsg PROC
+	LOCAL @szBuffer:DWORD
+
+	mov @szBuffer, alloc(BUFSIZE)
+
+	invoke RtlZeroMemory, @szBuffer, BUFSIZE
+	invoke recv, connSocket, @szBuffer, BUFSIZE, 0
+	invoke crt_printf, addr DEBUG_MSG, @szBuffer
+
+	free @szBuffer
+	ret
+printRecvMsg ENDP
+
 
 ;------------------------------------------------------------------------------
 clientRecvRoomTalk PROC msgBuffer:ptr byte
@@ -49,7 +68,7 @@ clientRecvRoomTalk PROC msgBuffer:ptr byte
 	mov @msgContent, alloc(BUFSIZE)
 
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
-	invoke sendMessage, hWinMain, WM_APPENDROOMMSG, addr @sourceUser, @msgContent
+	invoke SendMessage, hWinMain, WM_APPENDROOMMSG, addr @sourceUser, @msgContent
 
 	free @msgContent ; 删吗?
 	ret
@@ -67,7 +86,7 @@ clientRecv1To1Talk PROC msgBuffer:ptr byte
 	mov @msgContent, alloc(BUFSIZE)
 
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
-	invoke sendMessage, hWinMain, WM_APPEND1TO1MSG, addr @sourceUser, @msgContent
+	invoke SendMessage, hWinMain, WM_APPEND1TO1MSG, addr @sourceUser, @msgContent
 
 	free @msgContent ; 删吗?
 
@@ -89,7 +108,7 @@ clientRecvFriendApply PROC msgBuffer:ptr byte
 
 	invoke MessageBox, NULL, addr @content, addr FRIEND_REQUEST_HEADER, MB_YESNO
 	.if eax == IDYES
-		invoke sendMessage, hWinMain, WM_APPENDFRIEND, addr @sourceUser
+		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @sourceUser, 0
 		invoke clientFriendReply, addr @sourceUser, 1
 	.elseif eax == IDNO
 		invoke clientFriendReply, addr @sourceUser, 0
@@ -103,10 +122,8 @@ clientRecvFriendApply ENDP
 clientRecvFriendList PROC msgBuffer:ptr byte
 ; format: 5 F1:S1 F2:S2 ......
 ;------------------------------------------------------------------------------
-	LOCAL @tmpCmd:dword
 	LOCAL @userName[256]:byte
 	LOCAL @cursor:dword
-	LOCAL @status:dword
 	LOCAL @userLen:dword
 
 	mov eax, msgBuffer
@@ -127,7 +144,7 @@ clientRecvFriendList PROC msgBuffer:ptr byte
 		mov ebx, 0
 		mov bl, [eax]
 		sub ebx, 48 ; ASCII to int
-		invoke sendMessage, hWinMain, WM_APPENDFRIEND, addr @userName, ebx
+		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @userName, ebx
 		add @cursor, 3
 	.endw
 
@@ -144,7 +161,7 @@ clientRecvFriendNotify PROC msgBuffer:ptr byte
 	LOCAL @notifyID:dword
 
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT4, addr @tmpCmd, addr @sourceUser, addr @notifyID
-	invoke sendMessage, hWinMain, WM_CHANGEFRISTATUS, addr @sourceUser, @notifyID
+	invoke SendMessage, hWinMain, WM_CHANGEFRISTATUS, addr @sourceUser, @notifyID
 
 	ret
 clientRecvFriendNotify ENDP
@@ -154,10 +171,10 @@ clientRecvFriendNotify ENDP
 serviceThread PROC sockfd:dword
 ; thread to receive message from server
 ;------------------------------------------------------------------------------
+	LOCAL @stFdset:fd_set, @stTimeval:timeval
     LOCAL @szBuffer:dword
 	LOCAL @msgContent:dword
 	LOCAL @serverCmd:byte
-	LOCAL @tmpCmd:dword
 
 	mov @szBuffer, alloc(BUFSIZE)
 	mov @msgContent, alloc(BUFSIZE)
@@ -375,12 +392,12 @@ clientAddFriend ENDP
 
 
 ;------------------------------------------------------------------------------
-clientFriendReply PROC username:PTR BYTE, accept:DWORD
+clientFriendReply PROC username:PTR BYTE, accepted:DWORD
 ; friend application reply
 ;------------------------------------------------------------------------------
 	LOCAL @szBuffer[1024]:dword
 
-	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT4, CLIENT_FRIEND_REPLY, username, accept
+	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT4, CLIENT_FRIEND_REPLY, username, accepted
 	invoke crt_strlen, addr @szBuffer
 	invoke send, connSocket, addr @szBuffer, eax, 0
 

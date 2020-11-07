@@ -82,3 +82,6 @@ MSG_FORMAT7			db "%s%s", 0
 
 DEBUG_MSG1	db "%d", 0ah, 0dh, 0
 DEBUG_MSG2	db "%s", 0ah, 0dh, 0
+
+
+hWinMain dd ?

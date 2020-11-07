@@ -4,16 +4,18 @@ option casemap:none
 
 include windows.inc
 include gdi32.inc
-includelib gdi32.lib
 include user32.inc
-includelib user32.lib
 include kernel32.inc
-includelib kernel32.lib
 include comctl32.inc
-includelib comctl32.lib
 include msvcrt.inc
-includelib msvcrt.lib
 include ole32.inc
+include header.inc
+
+includelib gdi32.lib
+includelib user32.lib
+includelib kernel32.lib
+includelib comctl32.lib
+includelib msvcrt.lib
 includelib ole32.lib
 
 ;-----------------------------------------------------
@@ -21,7 +23,6 @@ includelib ole32.lib
 ;----------------------------------------------------
 .data
 hInstance DD ?
-hWinMain DD ?
 hToolBar DD ?
 hAddrInput DD ?
 hPortInput DD ?
@@ -102,12 +103,6 @@ szAddFriend db 'add friend', 0
 szHallChatRoom db 'Hall ChatRoom',0
 szDeleteFriend db 'delete friend',0
 szConnect db 'connect',0
-
-WM_APPENDNEWUSER		EQU WM_USER + 1
-WM_APPENDFRIEND			EQU WM_USER + 2
-WM_APPENDROOMMSG		EQU WM_USER + 3
-WM_APPEND1TO1MSG		EQU WM_USER + 4
-WM_CHANGEFRIENDSTATUS	EQU WM_USER + 5
 
 
 LOGON_BUTTON_HANDLE				EQU 1
@@ -784,7 +779,7 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 		; TODO 向大厅聊天室发信
 	.elseif eax == WM_APPEND1TO1MSG
 		; TODO 向私聊窗口发信
-	.elseif eax == WM_CHANGEFRIENDSTATUS
+	.elseif eax == WM_CHANGEFRISTATUS
 		; TODO 切换好友状态
 	.else
 		invoke DefWindowProc, hWnd, uMsg, wParam, lParam
