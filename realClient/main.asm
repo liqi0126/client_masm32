@@ -204,10 +204,10 @@ _SetRealCb PROC USES esi edi dwB:DWORD, lpB:DWORD
 	ret
 _SetRealCb ENDP
 
-_GetStreamWork PROC StreamType:DWORD, StreamHandle:DWORD
+_GetStreamWork PROC StreamType:DWORD, StreamHandle:DWORD, Message:DWORD
 	local @Message:EDITSTREAM
 	local @BufIndex:DWORD
-	mov eax, szBuffer
+	mov eax, Message
 	mov @BufIndex, eax
 	lea eax, @BufIndex
 	mov szBufIndex, eax
@@ -279,14 +279,19 @@ _ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, 
 	;invoke printf, addr debugMsg, @CurrentTime.wYear, @CurrentTime.wMonth
 	;invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, @CurrentTime.wYear
 	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szEnd
-	invoke _GetStreamWork, 1, @ChatRoomHandle
+	invoke _GetStreamWork, 1, @ChatRoomHandle, Message
 	ret
 _ShowMessage ENDP
 
-_SendMessage PROC USES eax esi edi
-	invoke _GetStreamWork, 0, hMessageEditor
+_SendMessage PROC USES eax esi edi IsHall:DWORD, Username:DWORD
+	invoke _GetStreamWork, 0, hMessageEditor, szBuffer
 	invoke _ClearEditor
-	invoke _ShowMessage, szBuffer, 1, addr szName, 1
+	invoke _ShowMessage, szBuffer, IsHall, Username, 1
+	.if IsHall == 0
+		invoke clientSend1To1Msg, Username, szBuffer
+	.else
+		invoke clientSendChatroomMsg, szBuffer
+	.endif
 	ret
 _SendMessage ENDP
 
@@ -387,11 +392,9 @@ _addUserToList PROC USES eax ebx esi edi, username:DWORD, status:DWORD, hListVie
 	local @item: LVITEM
 	local @hChatRoom: DWORD
 
-	;invoke crt_printf, username
 	; 写入username
 	mov @item.imask, LVIF_TEXT
 	mov @item.pszText, NULL
-	invoke crt_printf, username
 	invoke SendMessage, hListView, LVM_GETITEMCOUNT, 0, 0
 	mov @item.iItem, eax
 	mov @item.iSubItem, 0
@@ -1015,7 +1018,6 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			;加好友
 			invoke _getUsernameByRow, curOnlineListRow, hOnlineUserList
 			invoke _addUserToList, addr ptrUsername, 3, hFriendList 
-			; TODO 向Server发送请求
 			invoke clientAddFriend, addr ptrUsername
 		.elseif eax == RETURN_TO_HALL_BUTTON_HANDLE 
 			;返回大厅
@@ -1024,10 +1026,14 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			;删除好友
 			invoke _getUsernameByRow, curFriendListRow, hFriendList
 			invoke _deleteUserFromList, addr ptrUsername, hFriendList
-			; TODO 向Server发送请求
 			invoke clientDeleteFriend, addr ptrUsername
 		.elseif eax == SEND_BUTTON_HANDLE
-			invoke _SendMessage
+			.if currentUser == 0
+				invoke _SendMessage,1, addr szMe
+			.else
+				mov esi, currentUser
+				invoke _SendMessage, 0, (User ptr [esi]).username
+			.endif
 		.elseif eax == CLEAR_BUTTON_HANDLE
 			invoke _ClearEditor
 		.elseif eax == BOLD_BUTTON_HANDLE
@@ -1071,12 +1077,11 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 	.elseif eax == WM_APPENDFRIEND
 		invoke _addUserToList, wParam, lParam, hFriendList
 	.elseif eax == WM_CHANGEFRISTATUS
-		; TODO 切换好友状态
 		invoke _changeFriendStatus, wParam, lParam
 	.elseif eax == WM_APPENDROOMMSG
-		; TODO 向大厅聊天室发信
+		invoke _ShowMessage, lParam, 1, wParam, 0
 	.elseif eax == WM_APPEND1TO1MSG
-		; TODO 向私聊窗口发信
+		invoke _ShowMessage, lParam, 0, wParam, 0
 	.else
 		invoke DefWindowProc, hWnd, uMsg, wParam, lParam
 		ret

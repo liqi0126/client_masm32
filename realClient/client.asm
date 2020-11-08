@@ -55,20 +55,6 @@ DEBUG_MSG db "%s", 0ah, 0dh, 0
 ;=================== CODE =========================
 .code
 
-printRecvMsg PROC
-	LOCAL @szBuffer:DWORD
-
-	mov @szBuffer, alloc(BUFSIZE)
-
-	invoke RtlZeroMemory, @szBuffer, BUFSIZE
-	invoke recv, connSocket, @szBuffer, BUFSIZE, 0
-	invoke crt_printf, addr DEBUG_MSG, @szBuffer
-
-	free @szBuffer
-	ret
-printRecvMsg ENDP
-
-
 ;------------------------------------------------------------------------------
 clientRecvRoomTalk PROC msgBuffer:ptr byte
 ; format: sourceUser, Msg
@@ -79,10 +65,12 @@ clientRecvRoomTalk PROC msgBuffer:ptr byte
 	
 	mov @msgContent, alloc(BUFSIZE)
 
+
+
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
 	invoke SendMessage, hWinMain, WM_APPENDROOMMSG, addr @sourceUser, @msgContent
 
-	free @msgContent ; É¾Âð?
+	; free @msgContent ; É¾Âð?
 	ret
 clientRecvRoomTalk ENDP
 
@@ -98,10 +86,10 @@ clientRecv1To1Talk PROC msgBuffer:ptr byte
 	mov @msgContent, alloc(BUFSIZE)
 
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
+
 	invoke SendMessage, hWinMain, WM_APPEND1TO1MSG, addr @sourceUser, @msgContent
 
-	free @msgContent ; É¾Âð?
-
+	; free @msgContent ; É¾Âð?
 	ret
 clientRecv1To1Talk ENDP
 
@@ -156,6 +144,9 @@ clientRecvFriendList PROC msgBuffer:ptr byte
 		mov ebx, 0
 		mov bl, [eax]
 		sub ebx, 48 ; ASCII to int
+		pushad
+		invoke crt_printf, offset DEBUG_FORMAT3, addr @userName, ebx
+		popad
 		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @userName, ebx
 		add @cursor, 3
 	.endw
@@ -242,13 +233,11 @@ serviceThread PROC sockfd:dword
 ; thread to receive message from server
 ;------------------------------------------------------------------------------
 	LOCAL @stFdset:fd_set, @stTimeval:timeval
-    LOCAL @szBuffer:dword
-	LOCAL @msgContent:dword
+    LOCAL @szBuffer:ptr byte
 	LOCAL @serverCmd:byte
 	LOCAL @replyBuffer[512]:byte
 
 	mov @szBuffer, alloc(BUFSIZE)
-	mov @msgContent, alloc(BUFSIZE)
 
 	.while 1
 		mov @stFdset.fd_count, 1
@@ -262,13 +251,17 @@ serviceThread PROC sockfd:dword
 		.continue .if !eax
 
 		invoke RtlZeroMemory, @szBuffer, BUFSIZE
-		invoke recv, sockfd, @szBuffer, BUFSIZE,0
+		invoke recv, sockfd, @szBuffer, BUFSIZE, 0
 		.break .if eax == SOCKET_ERROR
 		.break .if !eax
+
+		; DEBUG
+		invoke crt_printf, offset DEBUG_FORMAT2,  @szBuffer
 
 		invoke crt_sprintf, addr @replyBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
 		invoke crt_strlen, addr @replyBuffer
 		invoke send, sockfd, addr @replyBuffer, eax, 0
+
 
 		mov eax, @szBuffer
 		mov bl, [eax]
@@ -301,7 +294,6 @@ serviceThread PROC sockfd:dword
    
     invoke closesocket, sockfd
 	free @szBuffer
-	free @msgContent
     ret
 serviceThread ENDP
 
