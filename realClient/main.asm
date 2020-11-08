@@ -81,6 +81,7 @@ curOnlineListRow DD -1
 curFriendListRow DD -1
 
 ptrUsername DD 0
+ptrUsers dd 0
 
 .const
 szClientWindowClassName DB "Client Window",0 ; ClientWindow 的类名
@@ -90,17 +91,17 @@ szOle32 db 'ole32.dll', 0
 szMsftedit db 'Msftedit.dll', 0
 szStatic db 'STATIC',0
 szButton db 'BUTTON',0
-szAddress db 'Address',0
+szAddress db 'ADDRESS',0
 szPort db 'PORT',0
-szUsername db 'Username',0
-szLogin db 'login',0
-szLogon db 'logon',0
+szUsername db 'USERNAME',0
+szLogin db 'LOGIN',0
+szLogon db 'LOGON',0
 szEdit db 'EDIT',0
-szSend db 'Send',0
-szClear db 'Clear',0
+szSend db 'SEND',0
+szClear db 'CLEAR',0
 szListView db 'SysListView32',0
 szRichEdit50W db 'RICHEDIT50W',0
-szStatus db 'status',0
+szStatus db 'STATUS',0
 szAllOnlineUsers db 'all online users',0
 szFriends db 'friends',0
 szOnline db 'online',0
@@ -116,8 +117,7 @@ szReturnToHall db 'return to hall',0
 szAddFriend db 'add friend', 0
 szHallChatRoom db 'Hall ChatRoom',0
 szDeleteFriend db 'delete friend',0
-szConnect db 'connect',0
-szPassword db 'password',0
+szPassword db 'PASSWORD',0
 szBufSize = 16777216
 szEnd db ' ', 0dh, 0ah, 0
 szSpace db ' ', 0
@@ -128,7 +128,7 @@ szUnderline db 'U', 0
 szStrikeout db 'S', 0
 szTextfont db 'Font', 0
 szName db 'User', 0
-ptrUsers dd 0
+
 
 LOGON_BUTTON_HANDLE				EQU 1
 LOGIN_BUTTON_HANDLE				EQU 2
@@ -812,12 +812,12 @@ _createUI PROC USES eax
 	; Address标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szAddress, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	20,20,60,20,\
+	20,20,80,20,\
 	hWinMain, 0, hInstance, NULL
 	;Address 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
-	80,20,150,20,\
+	90,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hAddrInput, eax
 	;invoke SendMessage, hNewEdit, WM_SETFONT, hFont, 0
@@ -825,9 +825,9 @@ _createUI PROC USES eax
 	; PORT标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szPort, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	250,20,60,20,\
+	250,20,80,20,\
 	hWinMain, 0, hInstance, NULL
-	;PORT 输入框
+	; PORT 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
 	290,20,150,20,\
