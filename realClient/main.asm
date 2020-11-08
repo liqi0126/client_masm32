@@ -61,6 +61,8 @@ hMessageFormatHeight DD ?
 hMessageEditorSendButton DD ?
 hMessageEditorClearButton DD ?
 hCurrentChatRoomNameEdit DD ?
+hHallMemberListEdit DD ?
+hFriendListEdit DD ?
 hStatusBar DD ?
 
 ptrBuffer db 0
@@ -116,6 +118,8 @@ szDelete db 'delete',0
 szReturnToHall db 'return to hall',0
 szAddFriend db 'add friend', 0
 szHallChatRoom db 'Hall ChatRoom',0
+szHallMemberList db 'HALL MEMBERS',0
+szFriendList db 'FRIENDS',0
 szDeleteFriend db 'delete friend',0
 szPassword db 'PASSWORD',0
 szBufSize = 16777216
@@ -172,7 +176,7 @@ _createListView PROC USES eax esi
 	; 创建friendListView 句柄2
 	invoke CreateWindowEx, NULL, offset szListView, NULL,\
 	WS_CHILD or WS_BORDER or WS_VSCROLL or WS_VISIBLE or LVS_SINGLESEL or LVS_REPORT,\
-	20, 380, 300, 280,\
+	20, 370, 300, 280,\
 	hWinMain, 2, hInstance, NULL
 	mov hFriendList, eax
 
@@ -229,10 +233,11 @@ _ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, 
 	local @TimeFormat:CHARFORMAT2
 	local @MessageIn:EDITSTREAM
 	local @CurrentTime:SYSTEMTIME
+	local @MessageTime[128]:BYTE
 	local @ChatRoomHandle:DWORD
 	invoke	RtlZeroMemory,addr @SenderFormat,sizeof @SenderFormat
 	mov	@SenderFormat.cbSize,sizeof @SenderFormat
-	mov @SenderFormat.yHeight, 180
+	mov @SenderFormat.yHeight, 280
 	mov @SenderFormat.dwEffects, CFE_BOLD
 	.if IsHall == 1
 		.if IsMe == 1
@@ -276,8 +281,15 @@ _ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, 
 		invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szMe
 	.endif
 	invoke GetLocalTime, addr @CurrentTime
-	;invoke printf, addr debugMsg, @CurrentTime.wYear, @CurrentTime.wMonth
-	;invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, @CurrentTime.wYear
+	invoke crt_sprintf, addr @MessageTime, offset MSG_FORMAT9, @CurrentTime.wHour, @CurrentTime.wMinute, @CurrentTime.wSecond
+	invoke RtlZeroMemory,addr @TimeFormat,sizeof @TimeFormat
+	mov	@TimeFormat.cbSize,sizeof @TimeFormat
+	mov @TimeFormat.yHeight, 180
+	mov @TimeFormat.crTextColor, 0870380h
+	mov @TimeFormat.dwMask, CFM_COLOR or CFM_SIZE or CFM_BOLD
+	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szSpace
+	invoke SendMessage, @ChatRoomHandle, EM_SETCHARFORMAT, SCF_SELECTION, addr @TimeFormat
+	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr @MessageTime
 	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szEnd
 	invoke _GetStreamWork, 1, @ChatRoomHandle, Message
 	ret
@@ -441,10 +453,11 @@ _addUserToList PROC USES eax ebx esi edi, username:DWORD, status:DWORD, hListVie
 
 	; 创建属于该用户的聊天显示框，并绑定在User结构体中
 	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
-	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL or ES_READONLY,\
-	350, 80, 860, 360,\
+	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL,\
+	350, 80, 860, 380,\
 	hWinMain, 0, hInstance, NULL
 	mov (User ptr [edi]).hChatRoom, eax
+	invoke ShowWindow, (User ptr [edi]).hChatRoom, SW_HIDE ;隐藏新建的窗口
 
 	; 将该User结构体插入链表中
 	.if UsersNodeList == 0
@@ -557,6 +570,7 @@ _changeFriendStatus PROC USES eax ecx esi, username:DWORD, status:DWORD
 	.endw
 	.if esi == 0
 		jmp QUIT
+		invoke ShowWindow, (User ptr [edi]).hChatRoom, SW_HIDE
 	.endif
 
 	mov eax, status
@@ -815,7 +829,7 @@ _createUI PROC USES eax
 	; Address标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szAddress, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	20,20,80,20,\
+	20,21,80,20,\
 	hWinMain, 0, hInstance, NULL
 	;Address 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
@@ -828,36 +842,36 @@ _createUI PROC USES eax
 	; PORT标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szPort, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	250,20,80,20,\
+	250,22,80,20,\
 	hWinMain, 0, hInstance, NULL
 	; PORT 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
-	290,20,150,20,\
+	293,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hPortInput, eax
 
 	; Username 标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szUsername, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	460,20,80,20,\
+	455,22,80,20,\
 	hWinMain, 0, hInstance, NULL
 	; Username 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
-	540,20,150,20,\
+	536,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hUsernameInput, eax
 
 	; Password 标签
 	invoke CreateWindowEx, NULL, addr szStatic, addr szPassword, \
 	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
-	700,20,80,20,\
+	700,22,80,20,\
 	hWinMain, 0, hInstance, NULL
 	; Password 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
-	780,20,150,20,\
+	783,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hPasswordInput, eax
 
@@ -868,10 +882,34 @@ _createUI PROC USES eax
 	hWinMain, 0, hInstance, NULL
 	mov hCurrentChatRoomNameEdit, eax
 
+	; 当前聊天室用户列表展示框
+	invoke CreateWindowEx, NULL, addr szStatic, addr szHallMemberList, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	20,55,180,20,\
+	hWinMain, 0, hInstance, NULL
+	;invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	;WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	;20,50,180,20,\
+	;hWinMain, 0, hInstance, NULL
+	;mov hHallMemberListEdit, eax
+	;invoke SendMessage, hHallMemberListEdit, WM_SETTEXT, 0, addr szHallMemberList
+
+	; 好友列表展示框
+	invoke CreateWindowEx, NULL, addr szStatic, addr szFriendList, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	20,345,180,20,\
+	hWinMain, 0, hInstance, NULL
+	;invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	;WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	;20,345,180,20,\
+	;hWinMain, 0, hInstance, NULL
+	;mov hFriendListEdit, eax
+	;invoke SendMessage, hFriendListEdit, WM_SETTEXT, 0, addr szFriendList
+
 	; login按钮 句柄1
 	invoke CreateWindowEx, NULL, addr szButton, addr szLogin, \
 	WS_VISIBLE or WS_CHILD, \
-	710,50,60,20,\
+	950,20,60,20,\
 	hWinMain, LOGIN_BUTTON_HANDLE, hInstance, NULL
 	mov hLoginButton, eax
 	;invoke EnableWindow, hSendButton, 0
@@ -880,7 +918,7 @@ _createUI PROC USES eax
 	; logon按钮 句柄2
 	invoke CreateWindowEx, NULL, addr szButton, addr szLogon, \
 	WS_VISIBLE or WS_CHILD, \
-	800,50,60,20,\
+	1030,20,60,20,\
 	hWinMain, LOGON_BUTTON_HANDLE, hInstance, NULL
 	mov hLogonButton, eax
 	;invoke EnableWindow, hSendButton, 0
@@ -889,49 +927,49 @@ _createUI PROC USES eax
 	; send按钮 句柄3
 	invoke CreateWindowEx, NULL, addr szButton, addr szSend, \
 	WS_VISIBLE or WS_CHILD, \
-	1100,620,100,40,\
+	1100,630,100,30,\
 	hWinMain, SEND_BUTTON_HANDLE, hInstance, NULL
 	mov hMessageEditorSendButton, eax
 
 	; clear按钮 句柄4
 	invoke CreateWindowEx, NULL, addr szButton, addr szClear, \
 	WS_VISIBLE or WS_CHILD, \
-	960,620,100,40,\
+	980,630,100,30,\
 	hWinMain, CLEAR_BUTTON_HANDLE, hInstance, NULL
 	mov hMessageEditorClearButton, eax
 
 	; addFriend按钮 句柄5
 	invoke CreateWindowEx, NULL, addr szButton, addr szAddFriend, \
 	WS_VISIBLE or WS_CHILD, \
-	20,45,100,30,\
+	220,45,100,30,\
 	hWinMain, ADD_FRIEND_BUTTON_HANDLE, hInstance, NULL
 	mov hAddFriendButton, eax
 
 	; return to hall 按钮 句柄6
 	invoke CreateWindowEx, NULL, addr szButton, addr szReturnToHall, \
 	WS_VISIBLE or WS_CHILD, \
-	150,45,100,30,\
+	520,45,100,30,\
 	hWinMain, RETURN_TO_HALL_BUTTON_HANDLE, hInstance, NULL
 	mov hReturnToHallButton, eax
 
 	; delete friend 按钮 句柄7
 	invoke CreateWindowEx, NULL, addr szButton, addr szDeleteFriend, \
 	WS_VISIBLE or WS_CHILD, \
-	20,340,100,30,\
+	220,335,100,30,\
 	hWinMain, DELETE_FRIEND_BUTTON_HANDLE, hInstance, NULL
 	mov hDeleteFriendButton, eax
 
 	; 创建聊天显示框
 	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
 	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL,\
-	350, 80, 860, 360,\
+	350, 80, 860, 380,\
 	hWinMain, 0, hInstance, NULL
 	mov hChatRoom, eax
 
 	; 创建聊天输入框
 	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
 	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL,\
-	350, 500, 860, 100,\
+	350, 500, 860, 120,\
 	hWinMain, 0, hInstance, NULL
 	mov hMessageEditor, eax
 	invoke crt_malloc, szBufSize

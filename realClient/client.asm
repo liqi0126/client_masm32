@@ -48,10 +48,6 @@ connSocket dd ?
 
 DEBUG_MSG db "%s", 0ah, 0dh, 0
 
-
-
-
-
 ;=================== CODE =========================
 .code
 
