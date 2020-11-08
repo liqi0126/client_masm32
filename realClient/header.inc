@@ -71,11 +71,13 @@ FRIEND_APPLY_PASS_ASCII	EQU		52 ; ASCII '4'
 FRIEND_APPLY_REJ_ASCII	EQU		53 ; ASCII '5'
 FRIEND_DELETED_ASCII	EQU		54 ; ASCII '6'
 
-WM_APPENDNEWUSER		EQU WM_USER + 1 ; username
-WM_APPENDFRIEND			EQU WM_USER + 2 ; friendname
-WM_APPENDROOMMSG		EQU WM_USER + 3 ; sourceUser Msg
-WM_APPEND1TO1MSG		EQU WM_USER + 4 ; sourceUser Msg
-WM_CHANGEFRISTATUS		EQU WM_USER + 5	; friend status
+WM_USERJOIN				EQU WM_USER + 1 ; username
+WM_USERLEAVE			EQU WM_USER + 2 ; username 
+WM_APPENDFRIEND			EQU WM_USER + 3 ; friendname
+WM_CHANGEFRISTATUS		EQU WM_USER + 4	; friend status
+WM_APPENDROOMMSG		EQU WM_USER + 5 ; sourceUser Msg
+WM_APPEND1TO1MSG		EQU WM_USER + 6 ; sourceUser Msg
+
 
 ;====================  DATA  =======================
 .data
