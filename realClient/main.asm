@@ -815,6 +815,8 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 		invoke _addUserToList, wParam, 1, hOnlineUserList
 	.elseif eax == WM_USERLEAVE
 		invoke _deleteUserFromList, wParam, hOnlineUserList
+	.elseif eax == WM_APPENDFRIEND
+		invoke _addUserToList, wParam, lParam, hFriendList
 	.elseif eax == WM_CHANGEFRISTATUS
 		; TODO 切换好友状态
 		invoke _changeFriendStatus, wParam, lParam
