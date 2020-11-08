@@ -252,7 +252,7 @@ _ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, 
 		mov eax, hChatRoom
 		mov @ChatRoomHandle, eax
 	.else
-		mov esi, ptrUsers
+		mov esi, UsersNodeList
 		.while esi != 0
 			mov edi, (User ptr [esi]).username
 			invoke crt_strcmp, Username, edi
