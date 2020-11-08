@@ -126,12 +126,13 @@ clientRecvFriendApply ENDP
 
 
 ;------------------------------------------------------------------------------
-clientRecvFriendList PROC msgBuffer:ptr byte
+clientRecvFriendList PROC msgBuffer:ptr byte, connfd:dword
 ; format: 5 F1:S1 F2:S2 ......
 ;------------------------------------------------------------------------------
 	LOCAL @userName[256]:byte
 	LOCAL @cursor:dword
 	LOCAL @userLen:dword
+	LOCAL @szBuffer[256]:byte
 
 	mov eax, msgBuffer
 	mov @cursor, eax
@@ -154,6 +155,10 @@ clientRecvFriendList PROC msgBuffer:ptr byte
 		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @userName, ebx
 		add @cursor, 3
 	.endw
+
+	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
+	invoke crt_strlen, addr @szBuffer
+	invoke send, connfd, addr @szBuffer, eax, 0
 
 	ret
 clientRecvFriendList ENDP
@@ -181,9 +186,9 @@ clientRecvRoomMembers PROC msgBuffer:ptr byte
 	LOCAL @usersList:dword
 	LOCAL @cursor:dword
 	LOCAL @username[256]:byte
+	LOCAL @szBuffer[256]:byte
 
 	mov @usersList, alloc(2048)
-
 
 	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT8, addr @tmpCmd, @usersList
 
@@ -207,6 +212,10 @@ clientRecvRoomMembers PROC msgBuffer:ptr byte
 		mov @cursor, eax
 		inc @cursor
 	.endw
+
+	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
+	invoke crt_strlen, addr @szBuffer
+	invoke send, connfd, addr @szBuffer, eax, 0
 
 	free @usersList
 

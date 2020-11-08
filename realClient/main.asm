@@ -787,12 +787,6 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _deleteUserFromList, addr ptrUsername, hFriendList
 			; TODO 向Server发送请求
 			invoke clientDeleteFriend, addr ptrUsername
-<<<<<<< HEAD
-		.elseif	eax == CONNECT_BUTTON_HANDLE 
-			;连接服务器
-			invoke _connect
-=======
->>>>>>> f8849f9839c08e5ca12b2d669b7c765a0643322a
 		.endif
 	.elseif eax == WM_NOTIFY
 		mov esi, lParam
