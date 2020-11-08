@@ -35,6 +35,7 @@ BUFSIZE EQU 104857600
 
 .data
 ; message
+extern hWinMain:dword
 ERR_BUILD_SOCKET	db "Fail to Open Socket", 0
 ERR_CONNECT			db "Fail to connect IP address", 0
 
@@ -46,6 +47,10 @@ currentUser db 128 dup(0)
 connSocket dd ?
 
 DEBUG_MSG db "%s", 0ah, 0dh, 0
+
+
+
+
 
 ;=================== CODE =========================
 .code
@@ -115,7 +120,7 @@ clientRecvFriendApply PROC msgBuffer:ptr byte
 
 	invoke MessageBox, NULL, addr @content, addr FRIEND_REQUEST_HEADER, MB_YESNO
 	.if eax == IDYES
-		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @sourceUser, 0
+		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @sourceUser, FRIEND_ONLINE
 		invoke clientFriendReply, addr @sourceUser, 1
 	.elseif eax == IDNO
 		invoke clientFriendReply, addr @sourceUser, 0
@@ -126,13 +131,12 @@ clientRecvFriendApply ENDP
 
 
 ;------------------------------------------------------------------------------
-clientRecvFriendList PROC msgBuffer:ptr byte, connfd:dword
+clientRecvFriendList PROC msgBuffer:ptr byte
 ; format: 5 F1:S1 F2:S2 ......
 ;------------------------------------------------------------------------------
 	LOCAL @userName[256]:byte
 	LOCAL @cursor:dword
 	LOCAL @userLen:dword
-	LOCAL @szBuffer[256]:byte
 
 	mov eax, msgBuffer
 	mov @cursor, eax
@@ -155,10 +159,6 @@ clientRecvFriendList PROC msgBuffer:ptr byte, connfd:dword
 		invoke SendMessage, hWinMain, WM_APPENDFRIEND, addr @userName, ebx
 		add @cursor, 3
 	.endw
-
-	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
-	invoke crt_strlen, addr @szBuffer
-	invoke send, connfd, addr @szBuffer, eax, 0
 
 	ret
 clientRecvFriendList ENDP
@@ -186,7 +186,6 @@ clientRecvRoomMembers PROC msgBuffer:ptr byte
 	LOCAL @usersList:dword
 	LOCAL @cursor:dword
 	LOCAL @username[256]:byte
-	LOCAL @szBuffer[256]:byte
 
 	mov @usersList, alloc(2048)
 
@@ -213,10 +212,6 @@ clientRecvRoomMembers PROC msgBuffer:ptr byte
 		inc @cursor
 	.endw
 
-	invoke crt_sprintf, addr @szBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
-	invoke crt_strlen, addr @szBuffer
-	invoke send, connfd, addr @szBuffer, eax, 0
-
 	free @usersList
 
 	ret
@@ -238,6 +233,7 @@ clientRecvJoinLeave PROC msgBuffer:ptr byte
 		invoke SendMessage, hWinMain, WM_USERJOIN, addr @username, 0
 	.endif
 
+
 	ret
 clientRecvJoinLeave ENDP
 
@@ -249,25 +245,30 @@ serviceThread PROC sockfd:dword
     LOCAL @szBuffer:dword
 	LOCAL @msgContent:dword
 	LOCAL @serverCmd:byte
+	LOCAL @replyBuffer[512]:byte
 
 	mov @szBuffer, alloc(BUFSIZE)
 	mov @msgContent, alloc(BUFSIZE)
 
 	.while 1
-;		mov @stFdset.fd_count, 1
-;		push sockfd
-;		pop @stFdset.fd_array
-;		mov @stTimeval.tv_usec,200*1000 ;ms
-;		mov @stTimeval.tv_sec,0
-;		invoke select, 0, addr @stFdset, NULL, NULL, addr @stTimeval ; wait for server cmd
-;
-;		.break .if eax == SOCKET_ERROR
-;		.continue .if !eax
+		mov @stFdset.fd_count, 1
+		push sockfd
+		pop @stFdset.fd_array
+		mov @stTimeval.tv_usec,200*1000 ;ms
+		mov @stTimeval.tv_sec,0
+		invoke select, 0, addr @stFdset, NULL, NULL, addr @stTimeval ; wait for server cmd
+
+		.break .if eax == SOCKET_ERROR
+		.continue .if !eax
 
 		invoke RtlZeroMemory, @szBuffer, BUFSIZE
 		invoke recv, sockfd, @szBuffer, BUFSIZE,0
 		.break .if eax == SOCKET_ERROR
 		.break .if !eax
+
+		invoke crt_sprintf, addr @replyBuffer, offset MSG_FORMAT0, SERVER_SUCCESS
+		invoke crt_strlen, addr @replyBuffer
+		invoke send, sockfd, addr @replyBuffer, eax, 0
 
 		mov eax, @szBuffer
 		mov bl, [eax]

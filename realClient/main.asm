@@ -18,10 +18,13 @@ includelib comctl32.lib
 includelib msvcrt.lib
 includelib ole32.lib
 
+public hWinMain
+
 ;-----------------------------------------------------
 ;数据设置
 ;----------------------------------------------------
 .data
+hWinMain DD ?
 hInstance DD ?
 hToolBar DD ?
 hAddrInput DD ?
@@ -354,6 +357,10 @@ _changeFriendStatus PROC USES eax ecx esi, username:DWORD, status:DWORD
 		inc @row
 		mov esi, (User ptr [esi]).nextPtr
 	.endw
+	.if esi == 0
+		jmp QUIT
+	.endif
+
 	mov eax, status
 	mov (User ptr [esi]).status, eax
 
@@ -374,7 +381,7 @@ _changeFriendStatus PROC USES eax ecx esi, username:DWORD, status:DWORD
 	.endif
 	mov @item.pszText, eax
 	invoke SendMessage, hFriendList, LVM_SETITEMTEXT, @row, addr @item
-
+QUIT:
 	ret
 _changeFriendStatus ENDP
 
@@ -759,8 +766,8 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 		;------------------------------------------------
 		; 功能测试代码，测试完后应当删除
 		;invoke _addUserToList, addr szUsername, 2, hFriendList
-		invoke _addUserToList, addr szUsername, 1, hOnlineUserList
-		invoke _addUserToList, addr szStatic, 1, hOnlineUserList
+		;invoke _addUserToList, addr szUsername, 1, hOnlineUserList
+		;invoke _addUserToList, addr szStatic, 1, hOnlineUserList
 		;------------------------------------------------
 
 		invoke _switchChatRoom, 0, 1 ;将当前窗口切换到大厅
