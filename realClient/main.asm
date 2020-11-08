@@ -10,6 +10,7 @@ include comctl32.inc
 include msvcrt.inc
 include ole32.inc
 include header.inc
+include comdlg32.inc
 
 includelib gdi32.lib
 includelib user32.lib
@@ -17,6 +18,7 @@ includelib kernel32.lib
 includelib comctl32.lib
 includelib msvcrt.lib
 includelib ole32.lib
+includelib comdlg32.lib
 
 public hWinMain
 
@@ -46,6 +48,14 @@ hMessageEditor DD ?
 hMessageFormatTextColor DD ?
 hMessageFormatEffects DD ?
 hMessageFormatFacename DD ?
+hMessageFormatBoldButton DD ?
+hMessageFormatItalicsButton DD ?
+hMessageFormatUnderlineButton DD ?
+hMessageFormatStrikeoutButton DD ?
+hMessageFormatTextFont DD ?
+szBufIndex DWORD ?
+szTextFont LOGFONT <?>
+szBuffer dd 0
 hMessageFormatWeight DD ?
 hMessageFormatHeight DD ?
 hMessageEditorSendButton DD ?
@@ -75,7 +85,7 @@ ptrUsername DD 0
 .const
 szClientWindowClassName DB "Client Window",0 ; ClientWindow 的类名
 szClientWindowName DB "Client",0 ; ClientWindow的窗口标题名称
-bufSize = 104857600
+;bufSize = 104857600
 szOle32 db 'ole32.dll', 0
 szMsftedit db 'Msftedit.dll', 0
 szStatic db 'STATIC',0
@@ -108,6 +118,17 @@ szHallChatRoom db 'Hall ChatRoom',0
 szDeleteFriend db 'delete friend',0
 szConnect db 'connect',0
 szPassword db 'password',0
+szBufSize = 16777216
+szEnd db ' ', 0dh, 0ah, 0
+szSpace db ' ', 0
+szDash db '-', 0
+szBold db 'B', 0
+szItalics db 'I', 0
+szUnderline db 'U', 0
+szStrikeout db 'S', 0
+szTextfont db 'Font', 0
+szName db 'User', 0
+ptrUsers dd 0
 
 LOGON_BUTTON_HANDLE				EQU 1
 LOGIN_BUTTON_HANDLE				EQU 2
@@ -116,7 +137,11 @@ CLEAR_BUTTON_HANDLE				EQU 4
 ADD_FRIEND_BUTTON_HANDLE		EQU 5
 RETURN_TO_HALL_BUTTON_HANDLE	EQU 6
 DELETE_FRIEND_BUTTON_HANDLE		EQU 7
-CONNECT_BUTTON_HANDLE			EQU 8
+BOLD_BUTTON_HANDLE			    EQU 8
+ITALICS_BUTTON_HANDLE			EQU 9
+UNDERLINE_BUTTON_HANDLE			EQU 10
+STRIKEOUT_BUTTON_HANDLE			EQU 11
+TEXTFONT_BUTTON_HANDLE			EQU 12
 .code
 ;----------------------------------------------------------
 _createListView PROC USES eax esi
@@ -166,6 +191,176 @@ _createListView PROC USES eax esi
 	invoke SendMessage, hFriendList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT or LVS_EX_AUTOSIZECOLUMNS
 	ret
 _createListView ENDP
+
+_ClearEditor PROC
+	invoke SetWindowText,hMessageEditor, NULL
+	ret
+_ClearEditor ENDP
+
+_SetRealCb PROC USES esi edi dwB:DWORD, lpB:DWORD
+	mov esi, lpB
+	mov edi, dwB
+	mov [esi], edi
+	ret
+_SetRealCb ENDP
+
+_GetStreamWork PROC StreamType:DWORD, StreamHandle:DWORD
+	local @Message:EDITSTREAM
+	local @BufIndex:DWORD
+	mov eax, szBuffer
+	mov @BufIndex, eax
+	lea eax, @BufIndex
+	mov szBufIndex, eax
+	.if StreamType == 0
+		mov @Message.dwCookie, TRUE
+		mov @Message.pfnCallback, offset _ProcMessageStream
+		invoke SendMessage,StreamHandle,EM_STREAMOUT,SF_RTF,addr @Message
+	.else
+		mov @Message.dwCookie, FALSE
+		mov @Message.pfnCallback, offset _ProcMessageStream
+		invoke SendMessage, StreamHandle, EM_STREAMIN, SF_RTF or SFF_SELECTION, addr @Message
+	.endif
+	ret
+_GetStreamWork ENDP
+
+_ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, IsMe:DWORD
+	local @CharPlace:CHARRANGE
+	local @SenderFormat:CHARFORMAT2
+	local @TimeFormat:CHARFORMAT2
+	local @MessageIn:EDITSTREAM
+	local @CurrentTime:SYSTEMTIME
+	local @ChatRoomHandle:DWORD
+	invoke	RtlZeroMemory,addr @SenderFormat,sizeof @SenderFormat
+	mov	@SenderFormat.cbSize,sizeof @SenderFormat
+	mov @SenderFormat.yHeight, 180
+	mov @SenderFormat.dwEffects, CFE_BOLD
+	.if IsHall == 1
+		.if IsMe == 1
+			mov @SenderFormat.crTextColor, 0d01040h
+		.else
+			mov @SenderFormat.crTextColor, 02170edh
+		.endif
+	.else
+		.if IsMe == 1
+			mov @SenderFormat.crTextColor, 0d01040h
+		.else
+			mov @SenderFormat.crTextColor, 0c91dfch
+		.endif
+	.endif
+	mov @SenderFormat.dwMask, CFM_COLOR or CFM_SIZE or CFM_BOLD
+	.if IsHall == 1
+		mov eax, hChatRoom
+		mov @ChatRoomHandle, eax
+	.else
+		mov esi, ptrUsers
+		.while esi != 0
+			mov edi, (User ptr [esi]).username
+			invoke crt_strcmp, Username, edi
+			.if eax == 0
+				.break
+			.endif
+			mov esi, (User ptr [esi]).nextPtr
+		.endw
+		mov eax, (User ptr [esi]).hChatRoom
+		mov @ChatRoomHandle, eax
+	.endif
+	invoke RtlZeroMemory,addr @CharPlace,sizeof @CharPlace
+	mov @CharPlace.cpMin, -1
+	mov @CharPlace.cpMax, -1
+	invoke SendMessage, @ChatRoomHandle, EM_EXSETSEL, 0, addr @CharPlace
+	.if IsMe == 0
+		invoke SendMessage, @ChatRoomHandle, EM_SETCHARFORMAT, SCF_SELECTION, addr @SenderFormat
+		invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, Username
+	.else
+		invoke SendMessage, @ChatRoomHandle, EM_SETCHARFORMAT, SCF_SELECTION, addr @SenderFormat
+		invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szMe
+	.endif
+	invoke GetLocalTime, addr @CurrentTime
+	;invoke printf, addr debugMsg, @CurrentTime.wYear, @CurrentTime.wMonth
+	;invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, @CurrentTime.wYear
+	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szEnd
+	invoke _GetStreamWork, 1, @ChatRoomHandle
+	ret
+_ShowMessage ENDP
+
+_SendMessage PROC USES eax esi edi
+	invoke _GetStreamWork, 0, hMessageEditor
+	invoke _ClearEditor
+	invoke _ShowMessage, szBuffer, 1, addr szName, 1
+	ret
+_SendMessage ENDP
+
+_ProcMessageStream PROC uses edi esi edx _dwCookie,_lpBuffer,_dwBytes,_lpBytes
+	mov edi, szBufIndex
+	mov edx, _dwBytes
+	mov esi, [edi]
+	.if _dwCookie
+		invoke crt_memcpy, esi, _lpBuffer, edx
+	.else
+		invoke crt_memcpy, _lpBuffer, esi, edx
+	.endif
+	add esi,_dwBytes
+	mov [edi], esi
+	invoke _SetRealCb, _dwBytes, _lpBytes 
+	xor	eax,eax
+	ret
+_ProcMessageStream ENDP
+
+_SetCharEffect PROC EffectType:DWORD
+	local @CharSelected:CHARRANGE
+	local @CharFormat:CHARFORMAT2
+	invoke SendMessage,hMessageEditor,EM_EXGETSEL,0,addr @CharSelected
+	mov eax,@CharSelected.cpMin
+	.if eax !=	@CharSelected.cpMax
+		invoke	RtlZeroMemory,addr @CharFormat,sizeof @CharFormat
+		mov	@CharFormat.cbSize,sizeof @CharFormat
+		.if EffectType == 0
+			mov @CharFormat.dwEffects, CFE_BOLD
+			mov	@CharFormat.dwMask,CFM_BOLD
+		.elseif EffectType == 1
+			mov @CharFormat.dwEffects, CFE_ITALIC
+			mov	@CharFormat.dwMask,CFE_ITALIC
+		.elseif EffectType == 2
+			mov @CharFormat.dwEffects, CFE_UNDERLINE
+			mov	@CharFormat.dwMask,CFE_UNDERLINE
+		.elseif EffectType == 3
+			mov @CharFormat.dwEffects, CFE_STRIKEOUT
+			mov	@CharFormat.dwMask,CFE_STRIKEOUT
+		.endif
+		invoke SendMessage,hMessageEditor,EM_SETCHARFORMAT,SCF_SELECTION,addr @CharFormat
+	.endif
+	ret
+_SetCharEffect ENDP
+
+_SetCharFont PROC USES eax edi
+	local @FontSelected:CHOOSEFONT
+	local @CharFormat:CHARFORMAT2
+	local @TextColor:DWORD
+	local @TextSize:DWORD
+	local @TextFaceName:DWORD
+	invoke	RtlZeroMemory,addr @FontSelected,sizeof @FontSelected
+	mov	@FontSelected.lStructSize,sizeof @FontSelected
+	push hWinMain
+	pop @FontSelected.hwndOwner
+	mov	@FontSelected.lpLogFont,offset szTextFont
+	mov	@FontSelected.Flags,CF_SCREENFONTS or CF_EFFECTS
+	invoke ChooseFont,addr @FontSelected
+	.if	eax
+		invoke	RtlZeroMemory,addr @CharFormat,sizeof @CharFormat
+		mov	@CharFormat.cbSize,sizeof @CharFormat
+		mov	@CharFormat.dwMask,CFM_SIZE or CFM_FACE or CFM_BOLD or CFE_ITALIC or CFE_UNDERLINE or CFE_STRIKEOUT or CFM_COLOR
+		push @FontSelected.rgbColors
+		pop @CharFormat.crTextColor
+		mov	eax,@FontSelected.iPointSize
+		shl	eax,1
+		mov @TextSize, eax
+		push @TextSize
+		pop @CharFormat.yHeight
+		invoke lstrcpy,addr @CharFormat.szFaceName, addr szTextFont.lfFaceName
+		invoke SendMessage,hMessageEditor,EM_SETCHARFORMAT,SCF_SELECTION,addr @CharFormat
+	.endif
+	ret
+_SetCharFont ENDP
 
 ;-----------------------------------------------------------------
 _getUsernameByRow PROC USES eax esi edi, row:DWORD, hListView:DWORD
@@ -725,7 +920,7 @@ _createUI PROC USES eax
 
 	; 创建聊天显示框
 	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
-	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL or ES_READONLY,\
+	WS_CHILD or WS_VISIBLE or WS_BORDER or WS_VSCROLL or ES_LEFT or ES_MULTILINE or ES_AUTOVSCROLL,\
 	350, 80, 860, 360,\
 	hWinMain, 0, hInstance, NULL
 	mov hChatRoom, eax
@@ -736,6 +931,43 @@ _createUI PROC USES eax
 	350, 500, 860, 100,\
 	hWinMain, 0, hInstance, NULL
 	mov hMessageEditor, eax
+	invoke crt_malloc, szBufSize
+	mov szBuffer, eax
+
+	; Bold Button handle 8
+	invoke CreateWindowEx, NULL, addr szButton, addr szBold, \
+	WS_VISIBLE or WS_CHILD or BS_FLAT or WS_EX_TRANSPARENT, \
+	350,465,30,30,\
+	hWinMain, BOLD_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageFormatBoldButton, eax
+
+	; Italics Button handle 9
+	invoke CreateWindowEx, NULL, addr szButton, addr szItalics, \
+	WS_VISIBLE or WS_CHILD or BS_FLAT or WS_EX_TRANSPARENT, \
+	380,465,30,30,\
+	hWinMain, ITALICS_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageFormatItalicsButton, eax
+
+	; Underline Button handle 10
+	invoke CreateWindowEx, NULL, addr szButton, addr szUnderline, \
+	WS_VISIBLE or WS_CHILD or BS_FLAT or WS_EX_TRANSPARENT, \
+	410,465,30,30,\
+	hWinMain, UNDERLINE_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageFormatUnderlineButton, eax
+
+	; Strikeout Button handle 11
+	invoke CreateWindowEx, NULL, addr szButton, addr szStrikeout, \
+	WS_VISIBLE or WS_CHILD or BS_FLAT or WS_EX_TRANSPARENT, \
+	440,465,30,30,\
+	hWinMain, STRIKEOUT_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageFormatStrikeoutButton, eax
+
+	; Textfont Button handle 12
+	invoke CreateWindowEx, NULL, addr szButton, addr szTextfont, \
+	WS_VISIBLE or WS_CHILD or BS_FLAT or WS_EX_TRANSPARENT, \
+	470,465,40,30,\
+	hWinMain, TEXTFONT_BUTTON_HANDLE, hInstance, NULL
+	mov hMessageFormatTextFont, eax
 
 	; 创建大厅用户列表，好友列表（调用_createListView函数）
 	invoke _createListView
@@ -794,6 +1026,20 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _deleteUserFromList, addr ptrUsername, hFriendList
 			; TODO 向Server发送请求
 			invoke clientDeleteFriend, addr ptrUsername
+		.elseif eax == SEND_BUTTON_HANDLE
+			invoke _SendMessage
+		.elseif eax == CLEAR_BUTTON_HANDLE
+			invoke _ClearEditor
+		.elseif eax == BOLD_BUTTON_HANDLE
+			invoke _SetCharEffect, 0
+		.elseif eax == ITALICS_BUTTON_HANDLE
+			invoke _SetCharEffect, 1
+		.elseif eax == UNDERLINE_BUTTON_HANDLE
+			invoke _SetCharEffect, 2
+		.elseif eax == STRIKEOUT_BUTTON_HANDLE
+			invoke _SetCharEffect, 3
+		.elseif eax == TEXTFONT_BUTTON_HANDLE
+			invoke _SetCharFont
 		.endif
 	.elseif eax == WM_NOTIFY
 		mov esi, lParam
