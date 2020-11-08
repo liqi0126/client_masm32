@@ -292,6 +292,7 @@ _ShowMessage PROC USES eax edx esi Message:DWORD, IsHall:DWORD, Username:DWORD, 
 	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr @MessageTime
 	invoke SendMessage, @ChatRoomHandle, EM_REPLACESEL, 1, addr szEnd
 	invoke _GetStreamWork, 1, @ChatRoomHandle, Message
+	invoke UpdateWindow, hWinMain
 	ret
 _ShowMessage ENDP
 
