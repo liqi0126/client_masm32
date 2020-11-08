@@ -55,19 +55,40 @@ DEBUG_MSG db "%s", 0ah, 0dh, 0
 ;=================== CODE =========================
 .code
 
+sepStrStr PROC msg:ptr byte, msg1:ptr byte, msg2:ptr byte
+	LOCAL @cursor:dword
+	LOCAL @len1:dword
+
+	invoke crt_strstr, msg, offset SEP
+	mov @cursor, eax
+	inc @cursor
+
+	sub eax, msg
+	mov @len1, eax
+
+	invoke crt_strncpy, msg1, msg, @len1
+	invoke crt_strcpy, msg2, @cursor
+	
+	ret
+sepStrStr ENDP
+
+
 ;------------------------------------------------------------------------------
 clientRecvRoomTalk PROC msgBuffer:ptr byte
 ; format: sourceUser, Msg
 ;------------------------------------------------------------------------------
-	LOCAL @tmpCmd:dword
 	LOCAL @sourceUser[256]:byte
-	LOCAL @msgContent:dword
+	LOCAL @msgContent:ptr byte
 	
 	mov @msgContent, alloc(BUFSIZE)
 
+	invoke RtlZeroMemory, addr @sourceUser, 256
+	invoke RtlZeroMemory, @msgContent, BUFSIZE
+	
+	mov ecx, msgBuffer
+	add ecx, 2
+	invoke sepStrStr, ecx, addr @sourceUser, @msgContent
 
-
-	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
 	invoke SendMessage, hWinMain, WM_APPENDROOMMSG, addr @sourceUser, @msgContent
 
 	; free @msgContent ; É¾Âð?
@@ -79,13 +100,16 @@ clientRecvRoomTalk ENDP
 clientRecv1To1Talk PROC msgBuffer:ptr byte
 ; format: sourceUser, Msg
 ;------------------------------------------------------------------------------
-	LOCAL @tmpCmd:dword
 	LOCAL @sourceUser[256]:byte
 	LOCAL @msgContent:dword
 
 	mov @msgContent, alloc(BUFSIZE)
 
-	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT6, addr @tmpCmd, addr @sourceUser, @msgContent
+	invoke RtlZeroMemory, addr @sourceUser, 256
+	invoke RtlZeroMemory, @msgContent, BUFSIZE
+	mov ecx, msgBuffer
+	add ecx, 2
+	invoke sepStrStr, ecx, addr @sourceUser, @msgContent
 
 	invoke SendMessage, hWinMain, WM_APPEND1TO1MSG, addr @sourceUser, @msgContent
 
@@ -136,6 +160,7 @@ clientRecvFriendList PROC msgBuffer:ptr byte
 		push eax
 		sub eax, ebx
 		mov @userLen, eax
+		invoke RtlZeroMemory, addr @userName, 256
 		invoke crt_strncpy, addr @userName, @cursor, @userLen
 		
 		pop eax
