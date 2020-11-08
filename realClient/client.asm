@@ -40,8 +40,8 @@ ERR_BUILD_SOCKET	db "Fail to Open Socket", 0
 ERR_CONNECT			db "Fail to connect IP address", 0
 
 
-FRIEND_REQUEST_HEADER	db "好友申请", 0
-FRIEND_REQUEST_CONTENT	db "想要添加您为好友", 0
+FRIEND_REQUEST_HEADER	db "Friend Request", 0
+FRIEND_REQUEST_CONTENT	db " wants to become your friend.", 0
 
 currentUser db 128 dup(0)
 connSocket dd ?
@@ -372,6 +372,7 @@ clientLogIn PROC szAddr:PTR BYTE, szPort:DWORD, username:PTR BYTE, password:PTR 
 		invoke crt_strcpy, offset currentUser, username
 		invoke CreateThread, NULL, 0, offset serviceThread, connSocket, NULL, esp
 		;invoke CloseHandle, eax
+		invoke SendMessage, hWinMain, WM_USERJOIN, username,0
 		mov eax, 1
 	.endif
 

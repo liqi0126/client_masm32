@@ -874,7 +874,7 @@ _createUI PROC USES eax
 	hWinMain, 0, hInstance, NULL
 	; Password 输入框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
-	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER or ES_PASSWORD,\
 	783,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hPasswordInput, eax
