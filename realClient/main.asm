@@ -780,6 +780,7 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _getUsernameByRow, curOnlineListRow, hOnlineUserList
 			invoke _addUserToList, addr ptrUsername, 3, hFriendList 
 			; TODO 向Server发送请求
+			invoke clientAddFriend, addr ptrUsername
 		.elseif eax == RETURN_TO_HALL_BUTTON_HANDLE 
 			;返回大厅
 			invoke _switchChatRoom, 0, 1
@@ -788,6 +789,7 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _getUsernameByRow, curFriendListRow, hFriendList
 			invoke _deleteUserFromList, addr ptrUsername, hFriendList
 			; TODO 向Server发送请求
+			invoke clientDeleteFriend, addr ptrUsername
 		.elseif	eax == CONNECT_BUTTON_HANDLE 
 			;连接服务器
 			invoke _connect

@@ -166,6 +166,64 @@ clientRecvFriendNotify PROC msgBuffer:ptr byte
 	ret
 clientRecvFriendNotify ENDP
 
+;------------------------------------------------------------------------------
+clientRecvRoomMembers PROC msgBuffer:ptr byte
+; format: user1 user2 ....
+;------------------------------------------------------------------------------
+	LOCAL @tmpCmd:dword
+	LOCAL @usersList:dword
+	LOCAL @cursor:dword
+	LOCAL @username[256]:byte
+
+	mov @usersList, alloc(2048)
+
+
+	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT8, addr @tmpCmd, @usersList
+
+	invoke crt_strlen, @usersList
+	.if eax == 0
+		ret
+	.endif
+
+	invoke crt_strcat, @usersList, offset SEP
+	mov eax, @usersList
+	mov @cursor, eax
+	.while 1
+		invoke crt_strstr, @cursor, offset SEP
+		.break .if eax == 0
+		mov bl, 0
+		mov [eax], bl
+		push eax
+		invoke crt_strcpy, addr @username, @cursor
+		invoke SendMessage, hWinMain, WM_USERJOIN, addr @username, 0
+		pop eax
+		mov @cursor, eax
+		inc @cursor
+	.endw
+
+	free @usersList
+
+	ret
+clientRecvRoomMembers ENDP
+
+
+;------------------------------------------------------------------------------
+clientRecvJoinLeave PROC msgBuffer:ptr byte
+; format: username 0/1 (leave/join)
+;------------------------------------------------------------------------------
+	LOCAL @tmpCmd:dword
+	LOCAL @username[256]:byte
+	LOCAL @join:dword
+
+	invoke crt_sscanf, msgBuffer, offset MSG_FORMAT4, addr @tmpCmd, addr @username, addr @join
+	.if @join == 0
+		invoke SendMessage, hWinMain, WM_USERLEAVE, addr @username, 0
+	.else
+		invoke SendMessage, hWinMain, WM_USERJOIN, addr @username, 0
+	.endif
+
+	ret
+clientRecvJoinLeave ENDP
 
 ;------------------------------------------------------------------------------
 serviceThread PROC sockfd:dword
@@ -213,6 +271,13 @@ serviceThread PROC sockfd:dword
 
 		.elseif @serverCmd == SERVER_FRIEND_NOTIFY_ASCII
 			invoke clientRecvFriendNotify, @szBuffer
+
+		.elseif @serverCmd == SERVER_ROOM_MEMBERS_ASCII
+			invoke clientRecvRoomMembers, @szBuffer
+
+		.elseif @serverCmd == SERVER_JOIN_LEAVE_ASCII
+			invoke clientRecvJoinLeave, @szBuffer
+
 		.endif
 
 	.endw
