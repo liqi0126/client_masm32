@@ -472,6 +472,7 @@ _addUserToList PROC USES eax ebx esi edi, username:DWORD, status:DWORD, hListVie
 		mov (User ptr [esi]).nextPtr, edi
 		mov (User ptr [edi]).nextPtr, 0
 	.endif
+	mov eax, edi
 QUIT:
 	ret
 
@@ -569,8 +570,10 @@ _changeFriendStatus PROC USES eax ecx esi, username:DWORD, status:DWORD
 		mov esi, (User ptr [esi]).nextPtr
 	.endw
 	.if esi == 0
+		; 找不到目标，新建一个
+		invoke _addUserToList,username, status, hFriendList
 		jmp QUIT
-		invoke ShowWindow, (User ptr [edi]).hChatRoom, SW_HIDE
+		mov esi, eax
 	.endif
 
 	mov eax, status
@@ -1054,17 +1057,22 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _logon
 		.elseif eax == ADD_FRIEND_BUTTON_HANDLE 
 			;加好友
-			invoke _getUsernameByRow, curOnlineListRow, hOnlineUserList
-			invoke _addUserToList, addr ptrUsername, 3, hFriendList 
-			invoke clientAddFriend, addr ptrUsername
+			.if curOnlineListRow != -1
+				invoke _getUsernameByRow, curOnlineListRow, hOnlineUserList
+				;invoke _addUserToList, addr ptrUsername, 3, hFriendList 
+				invoke _changeFriendStatus, addr ptrUsername, 3
+				invoke clientAddFriend, addr ptrUsername
+			.endif
 		.elseif eax == RETURN_TO_HALL_BUTTON_HANDLE 
 			;返回大厅
 			invoke _switchChatRoom, 0, 1
 		.elseif eax == DELETE_FRIEND_BUTTON_HANDLE
 			;删除好友
-			invoke _getUsernameByRow, curFriendListRow, hFriendList
-			invoke _deleteUserFromList, addr ptrUsername, hFriendList
-			invoke clientDeleteFriend, addr ptrUsername
+			.if curFriendListRow != -1
+				invoke _getUsernameByRow, curFriendListRow, hFriendList
+				invoke _deleteUserFromList, addr ptrUsername, hFriendList
+				invoke clientDeleteFriend, addr ptrUsername
+			.endif
 		.elseif eax == SEND_BUTTON_HANDLE
 			.if currentUser == 0
 				invoke _SendMessage,1, addr szMe
@@ -1113,7 +1121,8 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 	.elseif eax == WM_USERLEAVE
 		invoke _deleteUserFromList, wParam, hOnlineUserList
 	.elseif eax == WM_APPENDFRIEND
-		invoke _addUserToList, wParam, lParam, hFriendList
+		;invoke _addUserToList, wParam, lParam, hFriendList
+		invoke _changeFriendStatus, wParam, lParam
 	.elseif eax == WM_CHANGEFRISTATUS
 		invoke _changeFriendStatus, wParam, lParam
 	.elseif eax == WM_APPENDROOMMSG
