@@ -180,15 +180,15 @@ serviceThread PROC sockfd:dword
 	mov @msgContent, alloc(BUFSIZE)
 
 	.while 1
-		mov @stFdset.fd_count, 1
-		push sockfd
-		pop @stFdset.fd_array
-		mov @stTimeval.tv_usec,200*1000 ;ms
-		mov @stTimeval.tv_sec,0
-		invoke select, 0, addr @stFdset, NULL, NULL, addr @stTimeval ; wait for server cmd
-
-		.break .if eax == SOCKET_ERROR
-		.break .if !eax
+;		mov @stFdset.fd_count, 1
+;		push sockfd
+;		pop @stFdset.fd_array
+;		mov @stTimeval.tv_usec,200*1000 ;ms
+;		mov @stTimeval.tv_sec,0
+;		invoke select, 0, addr @stFdset, NULL, NULL, addr @stTimeval ; wait for server cmd
+;
+;		.break .if eax == SOCKET_ERROR
+;		.continue .if !eax
 
 		invoke RtlZeroMemory, @szBuffer, BUFSIZE
 		invoke recv, sockfd, @szBuffer, BUFSIZE,0
@@ -225,7 +225,7 @@ serviceThread ENDP
 
 
 ;---------------------------------------------------------------
-clientLogIn PROC szAddr:PTR BYTE, szPort:WORD, username:PTR BYTE, password:PTR BYTE
+clientLogIn PROC szAddr:PTR BYTE, szPort:DWORD, username:PTR BYTE, password:PTR BYTE
 ; sign in to server
 ;---------------------------------------------------------------
 	LOCAL @stWsa:WSADATA
@@ -276,7 +276,7 @@ clientLogIn PROC szAddr:PTR BYTE, szPort:WORD, username:PTR BYTE, password:PTR B
 	.else
 		invoke crt_strcpy, offset currentUser, username
 		invoke CreateThread, NULL, 0, offset serviceThread, connSocket, NULL, esp
-		invoke CloseHandle, eax
+		;invoke CloseHandle, eax
 		mov eax, 1
 	.endif
 
@@ -285,7 +285,7 @@ clientLogIn ENDP
 
 
 ;---------------------------------------------------------------
-clientSignIn PROC szAddr:PTR BYTE, szPort:WORD, username:PTR BYTE, password:PTR BYTE
+clientSignIn PROC szAddr:PTR BYTE, szPort:DWORD, username:PTR BYTE, password:PTR BYTE
 ; sign in to server
 ;---------------------------------------------------------------
 	LOCAL @stWsa:WSADATA

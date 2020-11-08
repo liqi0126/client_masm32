@@ -1,6 +1,18 @@
 ;==================== DECLARE =======================
 ExitProcess PROTO STDCALL:DWORD
-
+printRecvMsg PROTO
+clientRecvRoomTalk PROTO msgBuffer:ptr byte
+clientRecv1To1Talk PROTO msgBuffer:ptr byte
+clientRecvFriendApply PROTO msgBuffer:ptr byte
+clientRecvFriendList PROTO msgBuffer:ptr byte
+clientRecvFriendNotify PROTO msgBuffer:ptr byte
+clientLogIn PROTO szAddr:PTR BYTE, szPort:DWORD, username:PTR BYTE, password:PTR BYTE
+clientSignIn PROTO szAddr:PTR BYTE, szPort:DWORD, username:PTR BYTE, password:PTR BYTE
+clientSend1To1Msg PROTO username:PTR BYTE, msg:PTR BYTE
+clientSendChatroomMsg PROTO msg:PTR BYTE
+clientAddFriend PROTO username:PTR BYTE
+clientFriendReply PROTO username:PTR BYTE, accept:DWORD
+clientDeleteFriend PROTO username:PTR BYTE
 
 ;====================  CONST  =======================
 .const

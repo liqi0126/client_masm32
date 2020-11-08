@@ -27,6 +27,7 @@ hToolBar DD ?
 hAddrInput DD ?
 hPortInput DD ?
 hUsernameInput DD ?
+hPasswordInput DD ?
 hLogonButton DD ?
 hLoginButton DD ?
 hConnectButton DD ?
@@ -62,6 +63,7 @@ User struct
 User ENDS
 
 FORMAT_INT db '%d',0
+FORMAT_1 db '%s %d %s %s',0
 
 curOnlineListRow DD -1
 curFriendListRow DD -1
@@ -103,6 +105,7 @@ szAddFriend db 'add friend', 0
 szHallChatRoom db 'Hall ChatRoom',0
 szDeleteFriend db 'delete friend',0
 szConnect db 'connect',0
+szPassword db 'password',0
 
 
 LOGON_BUTTON_HANDLE				EQU 1
@@ -543,11 +546,25 @@ _logon PROC USES eax
 ; 获取用户名，并注册
 ;--------------------------------------------------------
 	local @username:DWORD
+	local @IP:DWORD
+	local @PORT:DWORD
+
+	;mov @IP[0], 128
+	invoke GlobalAlloc, GPTR, 128
+	mov @IP, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @IP
+
+	invoke GlobalAlloc, GPTR, 128
+	mov esi, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, esi
+	invoke crt_sscanf, esi, addr FORMAT_INT, addr @PORT
+
 	invoke GlobalAlloc, GPTR, 128
 	mov @username, eax
 	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @username
 
-	;TODO 向server发送注册请求
+	;向server发送注册请求
+
 	ret
 _logon ENDP
 
@@ -556,11 +573,32 @@ _login PROC USES eax
 ; 获取用户名，并登录
 ;--------------------------------------------------------
 	local @username:DWORD
+	local @IP:DWORD
+	local @PORT:DWORD
+	local @password:DWORD
+
+	;mov @IP[0], 128
+	invoke GlobalAlloc, GPTR, 128
+	mov @IP, eax
+	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @IP
+
+	invoke GlobalAlloc, GPTR, 128
+	mov esi, eax
+	invoke SendMessage, hPortInput, WM_GETTEXT, 128, esi
+	invoke crt_sscanf, esi, addr FORMAT_INT, addr @PORT
+
 	invoke GlobalAlloc, GPTR, 128
 	mov @username, eax
-	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @username
+	invoke SendMessage, hUsernameInput, WM_GETTEXT, 128, @username
 
-	;TODO 向server发送登录请求
+	invoke GlobalAlloc, GPTR, 128
+	mov @password, eax
+	invoke SendMessage, hPasswordInput, WM_GETTEXT, 128, @password
+
+	invoke crt_printf,offset FORMAT_1, @IP, @PORT, @username, @password
+
+	;向server发送登录请求
+	invoke clientLogIn, @IP, @PORT, @username, @password
 	ret
 _login ENDP
 
@@ -608,6 +646,19 @@ _createUI PROC USES eax
 	hWinMain, 0, hInstance, NULL
 	mov hUsernameInput, eax
 
+	; Password 标签
+	invoke CreateWindowEx, NULL, addr szStatic, addr szPassword, \
+	WS_VISIBLE or WS_DISABLED or WS_CHILD, \
+	700,20,80,20,\
+	hWinMain, 0, hInstance, NULL
+	; Password 输入框
+	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
+	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
+	780,20,150,20,\
+	hWinMain, 0, hInstance, NULL
+	mov hPasswordInput, eax
+
+
 	; 当前聊天室名称展示框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
 	WS_TABSTOP or WS_CHILD or WS_VISIBLE or WS_BORDER,\
@@ -618,7 +669,7 @@ _createUI PROC USES eax
 	; login按钮 句柄1
 	invoke CreateWindowEx, NULL, addr szButton, addr szLogin, \
 	WS_VISIBLE or WS_CHILD, \
-	710,20,60,20,\
+	710,50,60,20,\
 	hWinMain, LOGIN_BUTTON_HANDLE, hInstance, NULL
 	mov hLoginButton, eax
 	;invoke EnableWindow, hSendButton, 0
@@ -627,7 +678,7 @@ _createUI PROC USES eax
 	; logon按钮 句柄2
 	invoke CreateWindowEx, NULL, addr szButton, addr szLogon, \
 	WS_VISIBLE or WS_CHILD, \
-	800,20,60,20,\
+	800,50,60,20,\
 	hWinMain, LOGON_BUTTON_HANDLE, hInstance, NULL
 	mov hLogonButton, eax
 	;invoke EnableWindow, hSendButton, 0
@@ -667,13 +718,6 @@ _createUI PROC USES eax
 	20,340,100,30,\
 	hWinMain, DELETE_FRIEND_BUTTON_HANDLE, hInstance, NULL
 	mov hDeleteFriendButton, eax
-
-	; connect按钮 句柄8
-	invoke CreateWindowEx, NULL, addr szButton, addr szConnect, \
-	WS_VISIBLE or WS_CHILD, \
-	900,20,60,20,\
-	hWinMain, CONNECT_BUTTON_HANDLE, hInstance, NULL
-	mov hConnectButton, eax
 
 	; 创建聊天显示框
 	invoke CreateWindowEx, NULL, addr szRichEdit50W, NULL,\
