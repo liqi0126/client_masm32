@@ -63,7 +63,6 @@ User struct
 User ENDS
 
 FORMAT_INT db '%d',0
-FORMAT_1 db '%s %d %s %s',0
 
 curOnlineListRow DD -1
 curFriendListRow DD -1
@@ -106,7 +105,6 @@ szHallChatRoom db 'Hall ChatRoom',0
 szDeleteFriend db 'delete friend',0
 szConnect db 'connect',0
 szPassword db 'password',0
-
 
 LOGON_BUTTON_HANDLE				EQU 1
 LOGIN_BUTTON_HANDLE				EQU 2
@@ -548,6 +546,7 @@ _logon PROC USES eax
 	local @username:DWORD
 	local @IP:DWORD
 	local @PORT:DWORD
+	local @password:DWORD
 
 	;mov @IP[0], 128
 	invoke GlobalAlloc, GPTR, 128
@@ -556,15 +555,18 @@ _logon PROC USES eax
 
 	invoke GlobalAlloc, GPTR, 128
 	mov esi, eax
-	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, esi
+	invoke SendMessage, hPortInput, WM_GETTEXT, 128, esi
 	invoke crt_sscanf, esi, addr FORMAT_INT, addr @PORT
-
 	invoke GlobalAlloc, GPTR, 128
 	mov @username, eax
-	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @username
+	invoke SendMessage, hUsernameInput, WM_GETTEXT, 128, @username
 
-	;向server发送注册请求
+	invoke GlobalAlloc, GPTR, 128
+	mov @password, eax
+	invoke SendMessage, hPasswordInput, WM_GETTEXT, 128, @password
 
+	;TODO 向server发送注册请求
+	invoke clientSignIn, @IP, @PORT, @username, @password
 	ret
 _logon ENDP
 
@@ -577,7 +579,6 @@ _login PROC USES eax
 	local @PORT:DWORD
 	local @password:DWORD
 
-	;mov @IP[0], 128
 	invoke GlobalAlloc, GPTR, 128
 	mov @IP, eax
 	invoke SendMessage, hAddrInput, WM_GETTEXT, 128, @IP
@@ -586,7 +587,6 @@ _login PROC USES eax
 	mov esi, eax
 	invoke SendMessage, hPortInput, WM_GETTEXT, 128, esi
 	invoke crt_sscanf, esi, addr FORMAT_INT, addr @PORT
-
 	invoke GlobalAlloc, GPTR, 128
 	mov @username, eax
 	invoke SendMessage, hUsernameInput, WM_GETTEXT, 128, @username
@@ -595,9 +595,7 @@ _login PROC USES eax
 	mov @password, eax
 	invoke SendMessage, hPasswordInput, WM_GETTEXT, 128, @password
 
-	invoke crt_printf,offset FORMAT_1, @IP, @PORT, @username, @password
-
-	;向server发送登录请求
+	;TODO 向server发送注册请求
 	invoke clientLogIn, @IP, @PORT, @username, @password
 	ret
 _login ENDP
@@ -657,7 +655,6 @@ _createUI PROC USES eax
 	780,20,150,20,\
 	hWinMain, 0, hInstance, NULL
 	mov hPasswordInput, eax
-
 
 	; 当前聊天室名称展示框
 	invoke CreateWindowEx, NULL, addr szEdit, NULL,\
@@ -790,9 +787,12 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 			invoke _deleteUserFromList, addr ptrUsername, hFriendList
 			; TODO 向Server发送请求
 			invoke clientDeleteFriend, addr ptrUsername
+<<<<<<< HEAD
 		.elseif	eax == CONNECT_BUTTON_HANDLE 
 			;连接服务器
 			invoke _connect
+=======
+>>>>>>> f8849f9839c08e5ca12b2d669b7c765a0643322a
 		.endif
 	.elseif eax == WM_NOTIFY
 		mov esi, lParam
@@ -817,16 +817,19 @@ _ClientWindowProc PROC USES ebx esi edi, hWnd:DWORD, uMsg:DWORD, wParam:DWORD, l
 				mov curFriendListRow, edi
 			.endif
 		.endif
-	.elseif eax == WM_APPENDNEWUSER ; 新的用户登录进入大厅
+	.elseif eax == WM_USERJOIN ; 新的用户登录进入大厅
 		invoke _addUserToList, wParam, 1, hOnlineUserList
+	.elseif eax == WM_USERLEAVE
+		invoke _deleteUserFromList, wParam, hOnlineUserList
 	.elseif eax == WM_APPENDFRIEND
-		invoke _addUserToList, wParam, 1, hFriendList
+		invoke _addUserToList, wParam, lParam, hFriendList
+	.elseif eax == WM_CHANGEFRISTATUS
+		; TODO 切换好友状态
+		invoke _changeFriendStatus, wParam, lParam
 	.elseif eax == WM_APPENDROOMMSG
 		; TODO 向大厅聊天室发信
 	.elseif eax == WM_APPEND1TO1MSG
 		; TODO 向私聊窗口发信
-	.elseif eax == WM_CHANGEFRISTATUS
-		; TODO 切换好友状态
 	.else
 		invoke DefWindowProc, hWnd, uMsg, wParam, lParam
 		ret

@@ -8,6 +8,13 @@ include windows.inc
 include user32.inc
 include masm32rt.inc
 include msvcrt.inc
+include gdi32.inc
+include user32.inc
+include kernel32.inc
+include comctl32.inc
+include msvcrt.inc
+include ole32.inc
+
 include header.inc
 
 includelib ws2_32.lib
